@@ -133,6 +133,34 @@ function Profissionais() {
   );
 }
 
+function PortalLink({ clinicSlug, proSlug }: { clinicSlug: string; proSlug: string }) {
+  const path = `/portal/${clinicSlug}/${proSlug}`;
+  const fullUrl =
+    typeof window !== "undefined" ? `${window.location.origin}${path}` : path;
+
+  function copy() {
+    if (typeof navigator !== "undefined" && navigator.clipboard) {
+      navigator.clipboard.writeText(fullUrl);
+      toast.success("Link copiado");
+    }
+  }
+
+  return (
+    <div className="mt-3 flex items-center gap-2 rounded-lg border bg-muted/30 p-2 text-xs">
+      <Link2 className="h-3.5 w-3.5 text-primary shrink-0" />
+      <span className="truncate flex-1 font-mono text-[11px]">{path}</span>
+      <button
+        type="button"
+        onClick={copy}
+        className="text-muted-foreground hover:text-primary transition-smooth shrink-0"
+        title="Copiar link"
+      >
+        <Copy className="h-3.5 w-3.5" />
+      </button>
+    </div>
+  );
+}
+
 function NewAreaInline() {
   const store = useStore();
   const [name, setName] = useState("");
