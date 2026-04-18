@@ -27,7 +27,7 @@ import { format } from "date-fns";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/app/financeiro")({
-  component: Financeiro;
+  component: Financeiro,
 });
 
 function Financeiro() {
