@@ -35,8 +35,10 @@ export function PatientSheet({
 }) {
   const store = useStore();
   const patient = store.patients.find((p) => p.id === patientId);
-  const finStatus = patientId ? store.getPatientFinancialStatus(patientId) : "nao_associado";
-  const member = patient?.memberId ? store.members.find((m) => m.id === patient.memberId) : null;
+  const responsible = patient?.professionalId
+    ? store.professionals.find((p) => p.id === patient.professionalId)
+    : null;
+  const lastContrib = patient ? store.getLastContribution(patient.id) : undefined;
 
   const apptHistory = patient
     ? store.appointments
@@ -61,11 +63,21 @@ export function PatientSheet({
                   {format(new Date(patient.birthDate), "dd/MM/yyyy")}
                 </span>
               </div>
-              <div className="flex items-center gap-2">
-                <FinancialBadge status={finStatus} />
-                {member && (
+              <div className="flex flex-wrap items-center gap-2">
+                {patient && <FinancialBadge status={patient.isContributor} />}
+                {patient?.isContributor && patient.contributionAmount && (
                   <span className="text-xs text-muted-foreground">
-                    Associado: {member.name}
+                    R$ {patient.contributionAmount.toFixed(2)}/mês
+                  </span>
+                )}
+                {responsible && (
+                  <span className="text-xs text-muted-foreground">
+                    · Responsável: {responsible.name}
+                  </span>
+                )}
+                {lastContrib && (
+                  <span className="text-xs text-muted-foreground">
+                    · Última contrib.: {format(new Date(lastContrib.date), "dd/MM/yyyy")}
                   </span>
                 )}
               </div>

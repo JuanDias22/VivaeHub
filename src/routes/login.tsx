@@ -9,8 +9,8 @@ import { Label } from "@/components/ui/label";
 export const Route = createFileRoute("/login")({
   head: () => ({
     meta: [
-      { title: "Entrar — Vitalis" },
-      { name: "description", content: "Acesse sua clínica no Vitalis." },
+      { title: "Entrar — VivaeHub" },
+      { name: "description", content: "Acesse sua clínica no VivaeHub." },
     ],
   }),
   component: LoginPage,
@@ -18,7 +18,7 @@ export const Route = createFileRoute("/login")({
 
 function LoginPage() {
   const nav = useNavigate();
-  const [email, setEmail] = useState("demo@vitalis.com");
+  const [email, setEmail] = useState("demo@vivaehub.com");
   const [password, setPassword] = useState("demo123");
 
   function submit(e: React.FormEvent) {
@@ -34,18 +34,18 @@ function LoginPage() {
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/15 backdrop-blur">
             <Activity className="h-5 w-5" />
           </div>
-          <span className="text-lg font-semibold tracking-tight">Vitalis</span>
+          <span className="text-lg font-semibold tracking-tight">VivaeHub</span>
         </div>
         <div className="relative z-10 max-w-md">
           <h2 className="text-4xl font-semibold tracking-tight leading-tight">
-            Tudo o que sua clínica precisa, em um só lugar.
+            A plataforma da sua associação de saúde.
           </h2>
           <p className="mt-4 text-primary-foreground/85 text-base">
-            Agenda, prontuário, financeiro e WhatsApp — feitos para clínicas de nutrição
-            e associações de saúde.
+            Agenda, recepção, prontuário, contribuições e WhatsApp — tudo em um só lugar
+            para clínicas e associações com atendimentos gratuitos.
           </p>
         </div>
-        <div className="text-xs text-primary-foreground/70">© Vitalis SaaS</div>
+        <div className="text-xs text-primary-foreground/70">© VivaeHub</div>
         <div className="absolute -right-32 -bottom-32 w-96 h-96 rounded-full bg-white/10 blur-3xl" />
         <div className="absolute -right-10 top-20 w-64 h-64 rounded-full bg-white/10 blur-2xl" />
       </div>
@@ -56,7 +56,7 @@ function LoginPage() {
             <div className="flex h-10 w-10 items-center justify-center rounded-xl gradient-primary">
               <Activity className="h-5 w-5 text-primary-foreground" />
             </div>
-            <span className="text-lg font-semibold tracking-tight">Vitalis</span>
+            <span className="text-lg font-semibold tracking-tight">VivaeHub</span>
           </div>
 
           <h1 className="text-2xl font-semibold tracking-tight">Bem-vindo de volta</h1>

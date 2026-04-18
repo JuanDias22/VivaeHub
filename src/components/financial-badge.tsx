@@ -1,32 +1,35 @@
 import { Badge } from "@/components/ui/badge";
-import { AlertCircle, CheckCircle2, UserMinus } from "lucide-react";
+import { Heart, Circle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-export function FinancialBadge({
+export type ContributionStatus = "contribuinte" | "nao_contribuinte";
+
+/**
+ * Badge visual para status de contribuição voluntária do paciente.
+ * Aceita o status diretamente ou um boolean (isContributor).
+ */
+export function ContributionBadge({
   status,
   size = "sm",
 }: {
-  status: "adimplente" | "inadimplente" | "nao_associado";
+  status: ContributionStatus | boolean;
   size?: "xs" | "sm";
 }) {
-  const sz = size === "xs" ? "text-[10px] px-1.5 py-0 h-4" : "text-xs";
-  if (status === "adimplente") {
+  const isContrib = status === true || status === "contribuinte";
+  const sz = size === "xs" ? "text-[10px] px-1.5 py-0 h-4 gap-0.5" : "text-xs gap-1";
+  if (isContrib) {
     return (
-      <Badge variant="outline" className={cn("border-success/40 text-success gap-1", sz)}>
-        <CheckCircle2 className="h-3 w-3" /> Adimplente
-      </Badge>
-    );
-  }
-  if (status === "inadimplente") {
-    return (
-      <Badge variant="outline" className={cn("border-destructive/40 text-destructive gap-1", sz)}>
-        <AlertCircle className="h-3 w-3" /> Inadimplente
+      <Badge variant="outline" className={cn("border-success/40 text-success", sz)}>
+        <Heart className="h-3 w-3 fill-current" /> Contribuinte
       </Badge>
     );
   }
   return (
-    <Badge variant="outline" className={cn("text-muted-foreground gap-1", sz)}>
-      <UserMinus className="h-3 w-3" /> Não associado
+    <Badge variant="outline" className={cn("text-muted-foreground", sz)}>
+      <Circle className="h-3 w-3" /> Não contribui
     </Badge>
   );
 }
+
+// Backwards-compat alias used in existing imports.
+export const FinancialBadge = ContributionBadge;

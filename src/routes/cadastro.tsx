@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 export const Route = createFileRoute("/cadastro")({
   head: () => ({
     meta: [
-      { title: "Criar conta — Vitalis" },
+      { title: "Criar conta — VivaeHub" },
       { name: "description", content: "Crie a conta da sua clínica em segundos." },
     ],
   }),
@@ -35,7 +35,7 @@ function SignupPage() {
           <div className="flex h-10 w-10 items-center justify-center rounded-xl gradient-primary">
             <Activity className="h-5 w-5 text-primary-foreground" />
           </div>
-          <span className="text-lg font-semibold tracking-tight">Vitalis</span>
+          <span className="text-lg font-semibold tracking-tight">VivaeHub</span>
         </div>
 
         <h1 className="text-2xl font-semibold tracking-tight">Crie sua clínica</h1>
@@ -50,7 +50,7 @@ function SignupPage() {
               id="clinic"
               value={clinicName}
               onChange={(e) => setClinicName(e.target.value)}
-              placeholder="Ex.: Clínica Vitalis"
+              placeholder="Ex.: Associação Vivae"
               required
             />
           </div>

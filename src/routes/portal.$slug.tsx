@@ -129,7 +129,7 @@ function PatientPortal() {
       return;
     }
 
-    // 1. Cria paciente
+    // 1. Cria paciente (sempre associado automaticamente; sem contribuição por enquanto)
     const patientId = store.addPatient({
       name,
       phone,
@@ -137,6 +137,8 @@ function PatientPortal() {
         ? new Date(new Date().getFullYear() - Number(age), 0, 1).toISOString().slice(0, 10)
         : new Date().toISOString().slice(0, 10),
       email,
+      professionalId: proId,
+      isContributor: false,
     });
 
     // 2. Anamnese
