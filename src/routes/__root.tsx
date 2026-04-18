@@ -8,16 +8,16 @@ export const Route = createRootRoute({
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Vitalis — Gestão de clínicas e associações de saúde" },
+      { title: "VivaeHub — Gestão de clínicas e associações de saúde" },
       {
         name: "description",
         content:
-          "SaaS para clínicas de nutrição e associações de saúde: agenda, prontuário, financeiro e WhatsApp em um só lugar.",
+          "VivaeHub: agenda, prontuário, recepção, contribuições e WhatsApp para clínicas e associações de saúde, em um só lugar.",
       },
-      { property: "og:title", content: "Vitalis — Gestão de clínicas" },
+      { property: "og:title", content: "VivaeHub — Gestão de clínicas" },
       {
         property: "og:description",
-        content: "Agenda, pacientes, financeiro e WhatsApp para clínicas e associações.",
+        content: "Agenda, pacientes, recepção, contribuições e WhatsApp para associações de saúde.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },

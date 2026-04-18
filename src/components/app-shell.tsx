@@ -3,7 +3,7 @@ import {
   LayoutDashboard,
   CalendarDays,
   Users,
-  HeartHandshake,
+  Heart,
   Wallet,
   Stethoscope,
   LogOut,
@@ -35,7 +35,7 @@ const nav: NavItem[] = [
   { to: "/app/agenda", label: "Agenda", icon: CalendarDays },
   { to: "/app/recepcao", label: "Recepção", icon: ConciergeBell },
   { to: "/app/pacientes", label: "Pacientes", icon: Users },
-  { to: "/app/associados", label: "Associados", icon: HeartHandshake },
+  { to: "/app/associados", label: "Contribuições", icon: Heart },
   { to: "/app/financeiro", label: "Financeiro", icon: Wallet },
   { to: "/app/profissionais", label: "Profissionais", icon: Stethoscope },
   { to: "/app/whatsapp", label: "WhatsApp", icon: MessageCircle },
@@ -52,9 +52,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <div className="flex h-9 w-9 items-center justify-center rounded-lg gradient-primary shadow-glow">
             <Activity className="h-5 w-5 text-primary-foreground" />
           </div>
-          <div>
-            <div className="text-sm font-semibold tracking-tight">{store.clinic.name}</div>
-            <div className="text-xs text-muted-foreground">Plano Pro</div>
+          <div className="min-w-0">
+            <div className="text-sm font-semibold tracking-tight truncate">{store.clinic.name}</div>
+            <div className="text-xs text-muted-foreground">VivaeHub</div>
           </div>
         </div>
 
@@ -115,7 +115,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <div className="flex h-8 w-8 items-center justify-center rounded-md gradient-primary">
             <Activity className="h-4 w-4 text-primary-foreground" />
           </div>
-          <div className="text-sm font-semibold">{store.clinic.name}</div>
+          <div className="text-sm font-semibold truncate">{store.clinic.name}</div>
+          <div className="text-[10px] text-muted-foreground ml-auto">VivaeHub</div>
         </div>
         <div className="flex overflow-x-auto px-2 pb-2 gap-1 scrollbar-none">
           {nav.map((item) => {
