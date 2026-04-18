@@ -13,7 +13,14 @@ import {
 import { useStore } from "@/hooks/use-store";
 import { cn } from "@/lib/utils";
 
-const nav = [
+type NavItem = {
+  to: "/app" | "/app/agenda" | "/app/pacientes" | "/app/associados" | "/app/financeiro" | "/app/profissionais" | "/app/whatsapp";
+  label: string;
+  icon: typeof LayoutDashboard;
+  exact?: boolean;
+};
+
+const nav: NavItem[] = [
   { to: "/app", label: "Dashboard", icon: LayoutDashboard, exact: true },
   { to: "/app/agenda", label: "Agenda", icon: CalendarDays },
   { to: "/app/pacientes", label: "Pacientes", icon: Users },
@@ -21,7 +28,7 @@ const nav = [
   { to: "/app/financeiro", label: "Financeiro", icon: Wallet },
   { to: "/app/profissionais", label: "Profissionais", icon: Stethoscope },
   { to: "/app/whatsapp", label: "WhatsApp", icon: MessageCircle },
-] as const;
+];
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const store = useStore();
