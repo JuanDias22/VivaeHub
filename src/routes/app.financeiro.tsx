@@ -22,7 +22,7 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select";
-import { TrendingUp, Clock, Plus } from "lucide-react";
+import { TrendingUp, Heart, Plus } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 
@@ -37,44 +37,69 @@ function Financeiro() {
   const now = new Date();
 
   const filtered = store.finance.filter((e) =>
-    period === "todos" ? true : new Date(e.date).getMonth() === now.getMonth(),
+    period === "todos"
+      ? true
+      : new Date(e.date).getMonth() === now.getMonth() &&
+        new Date(e.date).getFullYear() === now.getFullYear(),
   );
 
-  const recebido = filtered.filter((e) => e.status === "pago").reduce((s, e) => s + e.amount, 0);
-  const pendente = filtered.filter((e) => e.status === "pendente").reduce((s, e) => s + e.amount, 0);
+  const totalPeriodo = filtered.reduce((s, e) => s + e.amount, 0);
+  const contribuicoesPeriodo = filtered
+    .filter((e) => e.type === "contribuicao")
+    .reduce((s, e) => s + e.amount, 0);
+  const totalArrecadado = store.getTotalRaised();
 
   return (
     <div>
       <PageHeader
         title="Financeiro"
-        description="Acompanhe entradas, mensalidades e pendências."
+        description="Histórico de contribuições e movimentações financeiras."
         action={<NewEntryDialog open={open} onOpenChange={setOpen} />}
       />
 
-      <div className="grid sm:grid-cols-2 gap-4 mb-6">
+      <div className="grid sm:grid-cols-3 gap-4 mb-6">
         <Card className="p-5 shadow-soft border-success/30">
           <div className="flex items-start justify-between">
             <div>
-              <div className="text-xs uppercase tracking-wider text-muted-foreground">Recebido</div>
+              <div className="text-xs uppercase tracking-wider text-muted-foreground">
+                Contribuições no período
+              </div>
               <div className="text-3xl font-semibold mt-2 text-success tabular-nums">
-                {recebido.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                {contribuicoesPeriodo.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
               </div>
             </div>
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-success/15 text-success">
+              <Heart className="h-5 w-5 fill-current" />
+            </div>
+          </div>
+        </Card>
+        <Card className="p-5 shadow-soft border-primary/30">
+          <div className="flex items-start justify-between">
+            <div>
+              <div className="text-xs uppercase tracking-wider text-muted-foreground">
+                Total no período
+              </div>
+              <div className="text-3xl font-semibold mt-2 text-primary tabular-nums">
+                {totalPeriodo.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+              </div>
+            </div>
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg gradient-primary text-primary-foreground shadow-glow">
               <TrendingUp className="h-5 w-5" />
             </div>
           </div>
         </Card>
-        <Card className="p-5 shadow-soft border-warning/30">
+        <Card className="p-5 shadow-soft">
           <div className="flex items-start justify-between">
             <div>
-              <div className="text-xs uppercase tracking-wider text-muted-foreground">Pendente</div>
-              <div className="text-3xl font-semibold mt-2 text-warning tabular-nums">
-                {pendente.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+              <div className="text-xs uppercase tracking-wider text-muted-foreground">
+                Total arrecadado
+              </div>
+              <div className="text-3xl font-semibold mt-2 tabular-nums">
+                {totalArrecadado.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
               </div>
             </div>
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-warning/15 text-warning">
-              <Clock className="h-5 w-5" />
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+              <TrendingUp className="h-5 w-5" />
             </div>
           </div>
         </Card>
@@ -102,7 +127,6 @@ function Financeiro() {
                 <th className="text-left px-4 py-3 font-medium">Descrição</th>
                 <th className="text-left px-4 py-3 font-medium">Tipo</th>
                 <th className="text-right px-4 py-3 font-medium">Valor</th>
-                <th className="text-left px-4 py-3 font-medium">Status</th>
               </tr>
             </thead>
             <tbody>
@@ -112,24 +136,29 @@ function Financeiro() {
                     {format(new Date(e.date), "dd/MM/yyyy")}
                   </td>
                   <td className="px-4 py-3 font-medium">{e.description}</td>
-                  <td className="px-4 py-3 capitalize text-muted-foreground">{e.type}</td>
-                  <td className="px-4 py-3 text-right font-medium tabular-nums">
-                    R$ {e.amount.toFixed(2)}
-                  </td>
                   <td className="px-4 py-3">
-                    {e.status === "pago" ? (
-                      <Badge className="bg-success text-success-foreground">Pago</Badge>
+                    {e.type === "contribuicao" ? (
+                      <Badge className="bg-success text-success-foreground">
+                        <Heart className="h-3 w-3 mr-1 fill-current" /> Contribuição
+                      </Badge>
+                    ) : e.type === "consulta" ? (
+                      <Badge variant="outline" className="border-primary/40 text-primary">
+                        Consulta
+                      </Badge>
                     ) : (
-                      <Badge variant="outline" className="border-warning/40 text-warning">
-                        Pendente
+                      <Badge variant="outline" className="text-muted-foreground capitalize">
+                        {e.type}
                       </Badge>
                     )}
+                  </td>
+                  <td className="px-4 py-3 text-right font-medium tabular-nums">
+                    R$ {e.amount.toFixed(2)}
                   </td>
                 </tr>
               ))}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="px-4 py-12 text-center text-muted-foreground">
+                  <td colSpan={4} className="px-4 py-12 text-center text-muted-foreground">
                     Nenhuma movimentação no período.
                   </td>
                 </tr>
@@ -146,8 +175,7 @@ function NewEntryDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (
   const store = useStore();
   const [description, setDescription] = useState("");
   const [amount, setAmount] = useState(0);
-  const [type, setType] = useState<"mensalidade" | "consulta">("consulta");
-  const [status, setStatus] = useState<"pago" | "pendente">("pago");
+  const [type, setType] = useState<"contribuicao" | "consulta" | "outro">("contribuicao");
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -156,7 +184,6 @@ function NewEntryDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (
       description,
       amount,
       type,
-      status,
     });
     toast.success("Lançamento registrado");
     onOpenChange(false);
@@ -198,23 +225,12 @@ function NewEntryDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="contribuicao">Contribuição</SelectItem>
                   <SelectItem value="consulta">Consulta</SelectItem>
-                  <SelectItem value="mensalidade">Mensalidade</SelectItem>
+                  <SelectItem value="outro">Outro</SelectItem>
                 </SelectContent>
               </Select>
             </div>
-          </div>
-          <div className="space-y-1.5">
-            <Label>Status</Label>
-            <Select value={status} onValueChange={(v) => setStatus(v as typeof status)}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="pago">Pago</SelectItem>
-                <SelectItem value="pendente">Pendente</SelectItem>
-              </SelectContent>
-            </Select>
           </div>
           <DialogFooter>
             <Button type="submit" className="gradient-primary">Salvar</Button>

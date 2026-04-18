@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import {
   Dialog,
   DialogContent,
@@ -21,11 +22,12 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select";
-import { Plus, Phone, CalendarDays } from "lucide-react";
+import { Plus, Phone, CalendarDays, Stethoscope } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { PatientSheet } from "@/components/patient-sheet";
-import { FinancialBadge } from "@/components/financial-badge";
+import { ContributionBadge } from "@/components/financial-badge";
+import { MIN_CONTRIBUTION } from "@/lib/mock-store";
 
 export const Route = createFileRoute("/app/pacientes")({
   component: Pacientes,
@@ -45,7 +47,7 @@ function Pacientes() {
     <div>
       <PageHeader
         title="Pacientes"
-        description="Núcleo do sistema: histórico, anamnese, exames e prontuário unificado."
+        description="Todo paciente é associado. Histórico, anamnese, exames e prontuário unificado."
         action={<NewPatientDialog open={openNew} onOpenChange={setOpenNew} />}
       />
 
@@ -60,8 +62,10 @@ function Pacientes() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
         {filtered.map((p) => {
-          const fin = store.getPatientFinancialStatus(p.id);
           const apptCount = store.appointments.filter((a) => a.patientId === p.id).length;
+          const responsible = p.professionalId
+            ? store.professionals.find((pr) => pr.id === p.professionalId)
+            : null;
           return (
             <Card
               key={p.id}
@@ -81,8 +85,13 @@ function Pacientes() {
                     <CalendarDays className="h-3 w-3" />{" "}
                     {format(new Date(p.birthDate), "dd/MM/yyyy")}
                   </div>
+                  {responsible && (
+                    <div className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5 truncate">
+                      <Stethoscope className="h-3 w-3" /> {responsible.name}
+                    </div>
+                  )}
                   <div className="mt-1.5">
-                    <FinancialBadge status={fin} size="xs" />
+                    <ContributionBadge status={p.isContributor} size="xs" />
                   </div>
                 </div>
               </div>
@@ -112,23 +121,36 @@ function NewPatientDialog({
   const store = useStore();
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
   const [birthDate, setBirthDate] = useState("");
-  const [memberId, setMemberId] = useState<string>("none");
+  const [professionalId, setProfessionalId] = useState<string>("none");
+  const [isContributor, setIsContributor] = useState(false);
+  const [contributionAmount, setContributionAmount] = useState(MIN_CONTRIBUTION);
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
+    if (isContributor && contributionAmount < MIN_CONTRIBUTION) {
+      toast.error(`Valor mínimo de contribuição: R$ ${MIN_CONTRIBUTION}`);
+      return;
+    }
     store.addPatient({
       name,
       phone,
+      email: email || undefined,
       birthDate,
-      memberId: memberId === "none" ? undefined : memberId,
+      professionalId: professionalId === "none" ? undefined : professionalId,
+      isContributor,
+      contributionAmount: isContributor ? contributionAmount : undefined,
     });
-    toast.success("Paciente cadastrado");
+    toast.success("Paciente cadastrado · associado automaticamente");
     onOpenChange(false);
     setName("");
     setPhone("");
+    setEmail("");
     setBirthDate("");
-    setMemberId("none");
+    setProfessionalId("none");
+    setIsContributor(false);
+    setContributionAmount(MIN_CONTRIBUTION);
   }
 
   return (
@@ -138,7 +160,7 @@ function NewPatientDialog({
           <Plus className="h-4 w-4 mr-1" /> Novo paciente
         </Button>
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent className="max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Novo paciente</DialogTitle>
         </DialogHeader>
@@ -147,35 +169,70 @@ function NewPatientDialog({
             <Label>Nome completo</Label>
             <Input value={name} onChange={(e) => setName(e.target.value)} required />
           </div>
-          <div className="space-y-1.5">
-            <Label>Telefone</Label>
-            <Input value={phone} onChange={(e) => setPhone(e.target.value)} required />
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label>Telefone</Label>
+              <Input value={phone} onChange={(e) => setPhone(e.target.value)} required />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Data de nascimento</Label>
+              <Input
+                type="date"
+                value={birthDate}
+                onChange={(e) => setBirthDate(e.target.value)}
+                required
+              />
+            </div>
           </div>
           <div className="space-y-1.5">
-            <Label>Data de nascimento</Label>
-            <Input
-              type="date"
-              value={birthDate}
-              onChange={(e) => setBirthDate(e.target.value)}
-              required
-            />
+            <Label>E-mail (opcional)</Label>
+            <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
           </div>
           <div className="space-y-1.5">
-            <Label>Vincular a um associado (opcional)</Label>
-            <Select value={memberId} onValueChange={setMemberId}>
+            <Label>Profissional responsável</Label>
+            <Select value={professionalId} onValueChange={setProfessionalId}>
               <SelectTrigger>
-                <SelectValue />
+                <SelectValue placeholder="Selecione" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="none">Não associado</SelectItem>
-                {store.members.map((m) => (
-                  <SelectItem key={m.id} value={m.id}>
-                    {m.name}
-                  </SelectItem>
-                ))}
+                <SelectItem value="none">Nenhum</SelectItem>
+                {store.professionals.map((p) => {
+                  const area = store.areas.find((a) => a.id === p.areaId);
+                  return (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.name} — {area?.name ?? p.specialty}
+                    </SelectItem>
+                  );
+                })}
               </SelectContent>
             </Select>
           </div>
+
+          <div className="rounded-lg border p-3 bg-muted/30 space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <Label className="text-sm">Paciente contribuinte?</Label>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  A contribuição é opcional e ajuda na manutenção dos atendimentos.
+                </p>
+              </div>
+              <Switch checked={isContributor} onCheckedChange={setIsContributor} />
+            </div>
+            {isContributor && (
+              <div className="space-y-1.5">
+                <Label>Valor mensal (mínimo R$ {MIN_CONTRIBUTION})</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min={MIN_CONTRIBUTION}
+                  value={contributionAmount}
+                  onChange={(e) => setContributionAmount(Number(e.target.value))}
+                  required
+                />
+              </div>
+            )}
+          </div>
+
           <DialogFooter>
             <Button type="submit" className="gradient-primary">Cadastrar</Button>
           </DialogFooter>

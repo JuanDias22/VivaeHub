@@ -5,16 +5,16 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
   Users,
-  HeartHandshake,
+  Heart,
   Wallet,
   CalendarCheck,
-  TrendingUp,
   ConciergeBell,
   Activity,
+  Stethoscope,
 } from "lucide-react";
 import { format, isSameDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { FinancialBadge } from "@/components/financial-badge";
+import { ContributionBadge } from "@/components/financial-badge";
 
 export const Route = createFileRoute("/app/")({
   component: Dashboard,
@@ -29,15 +29,23 @@ function Dashboard() {
     .sort((a, b) => +new Date(a.date) - +new Date(b.date));
 
   const waiting = store.reception.filter((r) => r.status === "aguardando").length;
+  const inService = store.reception.filter((r) => r.status === "em_atendimento").length;
 
-  const monthRevenue = store.finance
-    .filter((e) => e.status === "pago" && new Date(e.date).getMonth() === today.getMonth())
+  const monthRaised = store.finance
+    .filter(
+      (e) =>
+        e.type === "contribuicao" &&
+        new Date(e.date).getMonth() === today.getMonth() &&
+        new Date(e.date).getFullYear() === today.getFullYear(),
+    )
     .reduce((s, e) => s + e.amount, 0);
+  const totalRaised = store.getTotalRaised();
 
-  const activeMembers = store.members.filter((m) => m.active).length;
-  const delinquentMembers = store.members.filter((m) =>
-    m.payments.some((p) => p.status === "pendente"),
-  );
+  const contribuintes = store.patients.filter((p) => p.isContributor).length;
+  const naoContribuintes = store.patients.length - contribuintes;
+  const contribPct = store.patients.length
+    ? Math.round((contribuintes / store.patients.length) * 100)
+    : 0;
 
   // atendimentos por área (hoje)
   const byArea = store.areas.map((ar) => {
@@ -48,18 +56,11 @@ function Dashboard() {
 
   const stats = [
     {
-      label: "Pacientes",
-      value: store.patients.length,
-      icon: Users,
-      hint: "Cadastrados",
-      tone: "primary" as const,
-    },
-    {
-      label: "Hoje",
+      label: "Pacientes do dia",
       value: todayAppts.length,
       icon: CalendarCheck,
       hint: format(today, "EEEE, dd 'de' MMM", { locale: ptBR }),
-      tone: "accent" as const,
+      tone: "primary" as const,
     },
     {
       label: "Aguardando",
@@ -69,17 +70,24 @@ function Dashboard() {
       tone: "warning" as const,
     },
     {
-      label: "Associados ativos",
-      value: activeMembers,
-      icon: HeartHandshake,
-      hint: `${delinquentMembers.length} inadimplente(s)`,
+      label: "Em atendimento",
+      value: inService,
+      icon: Stethoscope,
+      hint: "Acontecendo agora",
+      tone: "accent" as const,
+    },
+    {
+      label: "Contribuintes",
+      value: `${contribuintes}/${store.patients.length}`,
+      icon: Heart,
+      hint: `${contribPct}% dos pacientes`,
       tone: "success" as const,
     },
     {
-      label: "Faturamento mês",
-      value: monthRevenue.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }),
+      label: "Arrecadado no mês",
+      value: monthRaised.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }),
       icon: Wallet,
-      hint: "Recebido",
+      hint: `Total: ${totalRaised.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}`,
       tone: "primary" as const,
     },
   ];
@@ -88,7 +96,7 @@ function Dashboard() {
     <div>
       <PageHeader
         title={`Olá, ${store.clinic.name}`}
-        description="Visão geral da sua operação hoje."
+        description="Visão geral da sua operação hoje no VivaeHub."
       />
 
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
@@ -150,7 +158,6 @@ function Dashboard() {
               {todayAppts.map((a) => {
                 const pt = store.patients.find((p) => p.id === a.patientId);
                 const pro = store.professionals.find((p) => p.id === a.professionalId);
-                const fin = store.getPatientFinancialStatus(a.patientId);
                 const r = store.reception.find((x) => x.appointmentId === a.id);
                 return (
                   <div
@@ -168,7 +175,7 @@ function Dashboard() {
                       </div>
                     </div>
                     <div className="hidden sm:block">
-                      <FinancialBadge status={fin} size="xs" />
+                      {pt && <ContributionBadge status={pt.isContributor} size="xs" />}
                     </div>
                     <Badge
                       variant={
@@ -242,32 +249,76 @@ function Dashboard() {
             </div>
           </Card>
 
+          {/* Contribuintes vs não contribuintes */}
           <Card className="p-5 shadow-soft">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="font-semibold">Inadimplentes</h3>
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+              <h3 className="font-semibold">Contribuição</h3>
+              <Heart className="h-4 w-4 text-success" />
             </div>
             <div className="space-y-3">
-              {delinquentMembers.slice(0, 5).map((m) => (
-                <div key={m.id} className="flex items-center justify-between text-sm">
-                  <div>
-                    <div className="font-medium">{m.name}</div>
-                    <div className="text-xs text-muted-foreground">{m.phone}</div>
-                  </div>
-                  <Badge variant="outline" className="text-warning border-warning/40">
-                    R$ {m.monthlyFee}
-                  </Badge>
+              <div>
+                <div className="flex items-center justify-between text-sm mb-1">
+                  <span className="flex items-center gap-1.5">
+                    <Heart className="h-3 w-3 text-success fill-current" /> Contribuintes
+                  </span>
+                  <span className="font-medium">{contribuintes}</span>
                 </div>
-              ))}
-              {delinquentMembers.length === 0 && (
-                <div className="text-sm text-muted-foreground text-center py-4">
-                  Tudo em dia! 🎉
+                <div className="h-2 rounded-full bg-muted overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-success transition-smooth"
+                    style={{ width: `${contribPct}%` }}
+                  />
                 </div>
-              )}
+              </div>
+              <div className="text-xs text-muted-foreground">
+                {naoContribuintes} paciente(s) não contribui(em).{" "}
+                <Link to="/app/associados" className="text-primary hover:underline">
+                  Ver detalhes →
+                </Link>
+              </div>
+              <div className="pt-2 border-t">
+                <div className="text-xs text-muted-foreground">Total arrecadado</div>
+                <div className="text-xl font-semibold tabular-nums text-primary">
+                  {totalRaised.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                </div>
+              </div>
             </div>
           </Card>
         </div>
       </div>
+
+      {/* Resumo secundário */}
+      <Card className="p-5 shadow-soft mt-6">
+        <div className="flex flex-wrap items-center gap-6">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent text-accent-foreground">
+              <Users className="h-5 w-5" />
+            </div>
+            <div>
+              <div className="text-xs uppercase tracking-wider text-muted-foreground">Pacientes</div>
+              <div className="text-lg font-semibold">{store.patients.length}</div>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent text-accent-foreground">
+              <Stethoscope className="h-5 w-5" />
+            </div>
+            <div>
+              <div className="text-xs uppercase tracking-wider text-muted-foreground">Profissionais</div>
+              <div className="text-lg font-semibold">{store.professionals.length}</div>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent text-accent-foreground">
+              <CalendarCheck className="h-5 w-5" />
+            </div>
+            <div>
+              <div className="text-xs uppercase tracking-wider text-muted-foreground">Consultas totais</div>
+              <div className="text-lg font-semibold">{store.appointments.length}</div>
+            </div>
+          </div>
+        </div>
+      </Card>
     </div>
   );
 }

@@ -160,7 +160,6 @@ function Column({
             const pt = store.patients.find((p) => p.id === a.patientId);
             const pro = store.professionals.find((p) => p.id === a.professionalId);
             const area = store.areas.find((ar) => ar.id === pro?.areaId);
-            const fin = store.getPatientFinancialStatus(a.patientId);
             return (
               <div
                 key={a.id}
@@ -179,7 +178,7 @@ function Column({
                     <Badge variant="outline" className="text-[10px] py-0 h-4">
                       {area?.name ?? pro?.specialty}
                     </Badge>
-                    <FinancialBadge status={fin} size="xs" />
+                    {pt && <FinancialBadge status={pt.isContributor} size="xs" />}
                   </div>
                 </div>
                 <div>{renderAction(a)}</div>

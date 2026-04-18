@@ -238,8 +238,8 @@ function AppointmentCard({
   if (!a) return null;
   const pt = store.patients.find((p) => p.id === a.patientId);
   const pro = store.professionals.find((p) => p.id === a.professionalId);
-  const fin = store.getPatientFinancialStatus(a.patientId);
   const checkedIn = store.reception.some((r) => r.appointmentId === a.id);
+  const isContrib = pt?.isContributor ?? false;
 
   return (
     <button
@@ -255,10 +255,10 @@ function AppointmentCard({
         <div className="flex-1 min-w-0">
           <div className="text-sm font-medium truncate flex items-center gap-1.5">
             {pt?.name}
-            {fin === "inadimplente" && (
+            {isContrib && (
               <span
-                className="h-1.5 w-1.5 rounded-full bg-destructive"
-                title="Inadimplente"
+                className="h-1.5 w-1.5 rounded-full bg-success"
+                title="Contribuinte"
               />
             )}
           </div>
@@ -308,7 +308,6 @@ function AppointmentDetailSheet({
   const pt = store.patients.find((p) => p.id === a.patientId);
   const pro = store.professionals.find((p) => p.id === a.professionalId);
   const area = store.areas.find((ar) => ar.id === pro?.areaId);
-  const fin = store.getPatientFinancialStatus(a.patientId);
   const history = pt
     ? store.appointments
         .filter((x) => x.patientId === pt.id && x.id !== a.id)
@@ -340,7 +339,7 @@ function AppointmentDetailSheet({
                   <Phone className="h-3 w-3" /> {pt?.phone}
                 </div>
                 <div className="mt-2">
-                  <FinancialBadge status={fin} />
+                  {pt && <FinancialBadge status={pt.isContributor} />}
                 </div>
               </div>
             </div>

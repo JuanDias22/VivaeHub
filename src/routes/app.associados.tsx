@@ -4,7 +4,6 @@ import { useStore } from "@/hooks/use-store";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -21,55 +20,99 @@ import {
   TabsTrigger,
   TabsContent,
 } from "@/components/ui/tabs";
-import { Plus, AlertCircle, CheckCircle2 } from "lucide-react";
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select";
+import { Plus, Heart, TrendingUp, Calendar } from "lucide-react";
 import { toast } from "sonner";
+import { format } from "date-fns";
+import { MIN_CONTRIBUTION, type Patient } from "@/lib/mock-store";
+import { ContributionBadge } from "@/components/financial-badge";
 
 export const Route = createFileRoute("/app/associados")({
-  component: Associados,
+  component: Contribuicoes,
 });
 
-function Associados() {
+function Contribuicoes() {
   const store = useStore();
   const [open, setOpen] = useState(false);
 
-  const inadimplentes = store.members.filter((m) =>
-    m.payments.some((p) => p.status === "pendente"),
-  );
+  const contribuintes = store.patients.filter((p) => p.isContributor);
+  const naoContribuintes = store.patients.filter((p) => !p.isContributor);
+  const totalArrecadado = store.getTotalRaised();
+  const totalMesAtual = store.finance
+    .filter(
+      (e) =>
+        e.type === "contribuicao" &&
+        new Date(e.date).getMonth() === new Date().getMonth() &&
+        new Date(e.date).getFullYear() === new Date().getFullYear(),
+    )
+    .reduce((s, e) => s + e.amount, 0);
 
   return (
     <div>
       <PageHeader
-        title="Associados"
-        description="Controle de mensalidades e situação dos membros."
-        action={<NewMemberDialog open={open} onOpenChange={setOpen} />}
+        title="Contribuições"
+        description="Todo paciente é associado. A contribuição é voluntária e ajuda a manter os atendimentos gratuitos."
+        action={<RegisterContribDialog open={open} onOpenChange={setOpen} />}
       />
 
-      <Tabs defaultValue="todos" className="w-full">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+        <KpiCard
+          icon={<Heart className="h-5 w-5 fill-current" />}
+          label="Contribuintes"
+          value={contribuintes.length.toString()}
+          hint={`${naoContribuintes.length} não contribuem`}
+          tone="success"
+        />
+        <KpiCard
+          icon={<Calendar className="h-5 w-5" />}
+          label="Arrecadado no mês"
+          value={totalMesAtual.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+          hint={format(new Date(), "MMMM yyyy")}
+          tone="primary"
+        />
+        <KpiCard
+          icon={<TrendingUp className="h-5 w-5" />}
+          label="Total arrecadado"
+          value={totalArrecadado.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+          hint="Histórico completo"
+          tone="primary"
+        />
+      </div>
+
+      <Tabs defaultValue="contribuintes" className="w-full">
         <TabsList>
-          <TabsTrigger value="todos">Todos ({store.members.length})</TabsTrigger>
-          <TabsTrigger value="inadimplentes">
-            Inadimplentes ({inadimplentes.length})
+          <TabsTrigger value="contribuintes">
+            Contribuintes ({contribuintes.length})
+          </TabsTrigger>
+          <TabsTrigger value="todos">
+            Todos os pacientes ({store.patients.length})
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="todos" className="mt-4">
-          <MembersTable members={store.members} />
+        <TabsContent value="contribuintes" className="mt-4">
+          <PatientsContribTable patients={contribuintes} />
         </TabsContent>
-        <TabsContent value="inadimplentes" className="mt-4">
-          <MembersTable members={inadimplentes} />
+        <TabsContent value="todos" className="mt-4">
+          <PatientsContribTable patients={store.patients} />
         </TabsContent>
       </Tabs>
     </div>
   );
 }
 
-function MembersTable({ members }: { members: ReturnType<typeof useStore>["members"] }) {
+function PatientsContribTable({ patients }: { patients: Patient[] }) {
   const store = useStore();
 
-  if (members.length === 0) {
+  if (patients.length === 0) {
     return (
       <Card className="p-12 text-center text-muted-foreground shadow-soft">
-        Nenhum associado nesta visualização.
+        Nenhum paciente nesta visualização.
       </Card>
     );
   }
@@ -80,47 +123,43 @@ function MembersTable({ members }: { members: ReturnType<typeof useStore>["membe
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b bg-muted/40 text-xs uppercase tracking-wider text-muted-foreground">
-              <th className="text-left px-4 py-3 font-medium">Associado</th>
-              <th className="text-left px-4 py-3 font-medium hidden md:table-cell">CPF</th>
-              <th className="text-left px-4 py-3 font-medium">Mensalidade</th>
+              <th className="text-left px-4 py-3 font-medium">Paciente</th>
               <th className="text-left px-4 py-3 font-medium">Status</th>
+              <th className="text-left px-4 py-3 font-medium">Valor mensal</th>
+              <th className="text-left px-4 py-3 font-medium hidden md:table-cell">Última contribuição</th>
               <th className="text-right px-4 py-3 font-medium">Ações</th>
             </tr>
           </thead>
           <tbody>
-            {members.map((m) => {
-              const hasPending = m.payments.some((p) => p.status === "pendente");
+            {patients.map((p) => {
+              const last = store.getLastContribution(p.id);
               return (
-                <tr key={m.id} className="border-b last:border-0 hover:bg-muted/30 transition-smooth">
+                <tr key={p.id} className="border-b last:border-0 hover:bg-muted/30 transition-smooth">
                   <td className="px-4 py-3">
-                    <div className="font-medium">{m.name}</div>
-                    <div className="text-xs text-muted-foreground">{m.phone}</div>
+                    <div className="font-medium">{p.name}</div>
+                    <div className="text-xs text-muted-foreground">{p.phone}</div>
+                  </td>
+                  <td className="px-4 py-3">
+                    <ContributionBadge status={p.isContributor} />
+                  </td>
+                  <td className="px-4 py-3 font-medium tabular-nums">
+                    {p.contributionAmount
+                      ? `R$ ${p.contributionAmount.toFixed(2)}`
+                      : "—"}
                   </td>
                   <td className="px-4 py-3 hidden md:table-cell text-muted-foreground tabular-nums">
-                    {m.cpf}
-                  </td>
-                  <td className="px-4 py-3 font-medium">R$ {m.monthlyFee.toFixed(2)}</td>
-                  <td className="px-4 py-3">
-                    {hasPending ? (
-                      <Badge variant="outline" className="border-warning/40 text-warning">
-                        <AlertCircle className="h-3 w-3 mr-1" /> Pendente
-                      </Badge>
-                    ) : (
-                      <Badge className="bg-success text-success-foreground">
-                        <CheckCircle2 className="h-3 w-3 mr-1" /> Em dia
-                      </Badge>
-                    )}
+                    {last ? `${format(new Date(last.date), "dd/MM/yyyy")} · R$ ${last.amount.toFixed(2)}` : "—"}
                   </td>
                   <td className="px-4 py-3 text-right">
                     <Button
                       size="sm"
                       variant="outline"
                       onClick={() => {
-                        store.registerMonthlyPayment(m.id);
-                        toast.success(`Pagamento de ${m.name} registrado`);
+                        store.registerContribution(p.id);
+                        toast.success(`Contribuição de ${p.name} registrada`);
                       }}
                     >
-                      Marcar pagamento
+                      Registrar contribuição
                     </Button>
                   </td>
                 </tr>
@@ -133,62 +172,107 @@ function MembersTable({ members }: { members: ReturnType<typeof useStore>["membe
   );
 }
 
-function NewMemberDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
+function KpiCard({
+  icon,
+  label,
+  value,
+  hint,
+  tone,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  hint: string;
+  tone: "success" | "primary";
+}) {
+  const cls =
+    tone === "primary"
+      ? "gradient-primary text-primary-foreground shadow-glow"
+      : "bg-success/15 text-success";
+  return (
+    <Card className="p-5 shadow-soft">
+      <div className="flex items-start justify-between">
+        <div>
+          <div className="text-xs uppercase tracking-wider text-muted-foreground">{label}</div>
+          <div className="text-2xl font-semibold mt-2 tabular-nums">{value}</div>
+          <div className="text-xs text-muted-foreground mt-1">{hint}</div>
+        </div>
+        <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${cls}`}>
+          {icon}
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+function RegisterContribDialog({
+  open,
+  onOpenChange,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+}) {
   const store = useStore();
-  const [name, setName] = useState("");
-  const [cpf, setCpf] = useState("");
-  const [phone, setPhone] = useState("");
-  const [fee, setFee] = useState(50);
+  const [patientId, setPatientId] = useState("");
+  const [amount, setAmount] = useState(MIN_CONTRIBUTION);
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
-    store.addMember({ name, cpf, phone, monthlyFee: fee });
-    toast.success("Associado cadastrado");
+    if (!patientId) {
+      toast.error("Selecione um paciente");
+      return;
+    }
+    if (amount < MIN_CONTRIBUTION) {
+      toast.error(`Valor mínimo: R$ ${MIN_CONTRIBUTION}`);
+      return;
+    }
+    store.registerContribution(patientId, amount);
+    toast.success("Contribuição registrada");
     onOpenChange(false);
-    setName("");
-    setCpf("");
-    setPhone("");
-    setFee(50);
+    setPatientId("");
+    setAmount(MIN_CONTRIBUTION);
   }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogTrigger asChild>
         <Button size="sm" className="gradient-primary shadow-soft">
-          <Plus className="h-4 w-4 mr-1" /> Novo associado
+          <Plus className="h-4 w-4 mr-1" /> Registrar contribuição
         </Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Novo associado</DialogTitle>
+          <DialogTitle>Registrar contribuição</DialogTitle>
         </DialogHeader>
         <form onSubmit={submit} className="space-y-4">
           <div className="space-y-1.5">
-            <Label>Nome</Label>
-            <Input value={name} onChange={(e) => setName(e.target.value)} required />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label>CPF</Label>
-              <Input value={cpf} onChange={(e) => setCpf(e.target.value)} required />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Telefone</Label>
-              <Input value={phone} onChange={(e) => setPhone(e.target.value)} required />
-            </div>
+            <Label>Paciente</Label>
+            <Select value={patientId} onValueChange={setPatientId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione" />
+              </SelectTrigger>
+              <SelectContent>
+                {store.patients.map((p) => (
+                  <SelectItem key={p.id} value={p.id}>
+                    {p.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div className="space-y-1.5">
-            <Label>Mensalidade (R$)</Label>
+            <Label>Valor da contribuição (mínimo R$ {MIN_CONTRIBUTION})</Label>
             <Input
               type="number"
               step="0.01"
-              value={fee}
-              onChange={(e) => setFee(Number(e.target.value))}
+              min={MIN_CONTRIBUTION}
+              value={amount}
+              onChange={(e) => setAmount(Number(e.target.value))}
               required
             />
           </div>
           <DialogFooter>
-            <Button type="submit" className="gradient-primary">Cadastrar</Button>
+            <Button type="submit" className="gradient-primary">Registrar</Button>
           </DialogFooter>
         </form>
       </DialogContent>
