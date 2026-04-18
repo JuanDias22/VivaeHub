@@ -411,76 +411,126 @@ function ScreenProfessional({
   setProId: (v: string) => void;
 }) {
   const store = useStore();
-  const areasComProfissional = store.areas.filter((a) =>
-    store.professionals.some((p) => p.areaId === a.id),
-  );
-  const profsDaArea = areaId
-    ? store.professionals.filter((p) => p.areaId === areaId)
-    : [];
+
+  // Áreas dinâmicas: somente as que possuem ao menos 1 profissional cadastrado
+  // nesta clínica. Atualiza automaticamente ao adicionar/editar profissionais.
+  const areasComProfissional = store.areas
+    .map((a) => ({
+      area: a,
+      profs: store.professionals.filter((p) => p.areaId === a.id),
+    }))
+    .filter((g) => g.profs.length > 0);
+
+  if (areasComProfissional.length === 0) {
+    return (
+      <div className="space-y-3 text-center py-8">
+        <h2 className="text-xl font-semibold">Sem áreas disponíveis</h2>
+        <p className="text-sm text-muted-foreground">
+          Esta clínica ainda não possui profissionais cadastrados.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
       <div>
         <h2 className="text-xl font-semibold">Escolha a área de atendimento</h2>
         <p className="text-sm text-muted-foreground">
-          Selecione a especialidade e em seguida o profissional.
+          Áreas disponíveis em {store.clinic.name}. Selecione um profissional para continuar.
         </p>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-        {areasComProfissional.map((a) => (
+      {/* Filtro rápido por área */}
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={() => setAreaId("")}
+          className={
+            "px-3 py-1.5 rounded-full border text-xs font-medium transition-smooth " +
+            (areaId === ""
+              ? "border-primary bg-primary/10 text-primary"
+              : "hover:bg-muted/40")
+          }
+        >
+          Todas ({areasComProfissional.length})
+        </button>
+        {areasComProfissional.map(({ area, profs }) => (
           <button
-            key={a.id}
+            key={area.id}
             type="button"
-            onClick={() => setAreaId(a.id)}
+            onClick={() => setAreaId(area.id)}
             className={
-              "rounded-xl border p-4 text-left transition-smooth hover:bg-muted/40 " +
-              (areaId === a.id ? "border-primary bg-primary/5 ring-1 ring-primary/30" : "")
+              "px-3 py-1.5 rounded-full border text-xs font-medium transition-smooth flex items-center gap-1.5 " +
+              (areaId === area.id
+                ? "border-primary bg-primary/10 text-primary"
+                : "hover:bg-muted/40")
             }
           >
             <span
-              className="inline-block h-2.5 w-2.5 rounded-full mb-2"
-              style={{ background: a.color }}
+              className="inline-block h-2 w-2 rounded-full"
+              style={{ background: area.color }}
             />
-            <div className="font-medium text-sm">{a.name}</div>
+            {area.name} ({profs.length})
           </button>
         ))}
-        {areasComProfissional.length === 0 && (
-          <div className="col-span-full text-sm text-muted-foreground text-center py-6">
-            Nenhuma área com profissionais disponíveis.
-          </div>
-        )}
       </div>
 
-      {areaId && (
-        <div className="space-y-2">
-          <Label>Profissional</Label>
-          <div className="grid grid-cols-1 gap-2">
-            {profsDaArea.map((p) => (
-              <button
-                key={p.id}
-                type="button"
-                onClick={() => setProId(p.id)}
-                className={
-                  "flex items-center gap-3 rounded-lg border p-3 text-left transition-smooth hover:bg-muted/40 " +
-                  (proId === p.id ? "border-primary bg-primary/5 ring-1 ring-primary/30" : "")
-                }
-              >
-                <div
-                  className="h-9 w-9 rounded-full flex items-center justify-center text-white text-xs font-medium"
-                  style={{ background: p.color }}
-                >
-                  {p.name.split(" ").slice(-2).map((n) => n[0]).join("").toUpperCase()}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="font-medium text-sm truncate">{p.name}</div>
-                  <div className="text-xs text-muted-foreground truncate">{p.specialty}</div>
-                </div>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
+      {/* Profissionais agrupados por área */}
+      <div className="space-y-5">
+        {areasComProfissional
+          .filter(({ area }) => !areaId || area.id === areaId)
+          .map(({ area, profs }) => (
+            <div key={area.id} className="space-y-2">
+              <div className="flex items-center gap-2">
+                <span
+                  className="inline-block h-2.5 w-2.5 rounded-full"
+                  style={{ background: area.color }}
+                />
+                <h3 className="text-sm font-semibold">{area.name}</h3>
+                <span className="text-xs text-muted-foreground">
+                  · {profs.length} profissional{profs.length > 1 ? "is" : ""}
+                </span>
+              </div>
+              <div className="grid grid-cols-1 gap-2">
+                {profs.map((p) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => {
+                      setAreaId(area.id);
+                      setProId(p.id);
+                    }}
+                    className={
+                      "flex items-center gap-3 rounded-lg border p-3 text-left transition-smooth hover:bg-muted/40 " +
+                      (proId === p.id
+                        ? "border-primary bg-primary/5 ring-1 ring-primary/30"
+                        : "")
+                    }
+                  >
+                    <div
+                      className="h-9 w-9 rounded-full flex items-center justify-center text-white text-xs font-medium shrink-0"
+                      style={{ background: p.color }}
+                    >
+                      {p.name
+                        .split(" ")
+                        .slice(-2)
+                        .map((n) => n[0])
+                        .join("")
+                        .toUpperCase()}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium text-sm truncate">{p.name}</div>
+                      <div className="text-xs text-muted-foreground truncate">
+                        {p.specialty}
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
+      </div>
     </div>
   );
 }
