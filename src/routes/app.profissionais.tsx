@@ -22,7 +22,7 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select";
-import { Plus, Trash2, Tag } from "lucide-react";
+import { Plus, Trash2, Tag, Link2, Copy } from "lucide-react";
 import { toast } from "sonner";
 import { isSameDay } from "date-fns";
 
@@ -124,6 +124,7 @@ function Profissionais() {
                   <div className="font-semibold">{total}</div>
                 </div>
               </div>
+              <PortalLink clinicSlug={store.clinic.slug} proSlug={p.slug} />
             </Card>
           );
         })}
