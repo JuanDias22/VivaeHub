@@ -13,6 +13,12 @@ import {
   DialogTrigger,
   DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -31,6 +37,10 @@ import {
   MessageCircle,
   Check,
   X,
+  ConciergeBell,
+  Phone,
+  History,
+  ArrowRight,
 } from "lucide-react";
 import {
   addDays,
@@ -41,6 +51,7 @@ import {
 } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
+import { FinancialBadge } from "@/components/financial-badge";
 
 export const Route = createFileRoute("/app/agenda")({
   component: Agenda,
@@ -51,7 +62,9 @@ function Agenda() {
   const [view, setView] = useState<"dia" | "semana">("dia");
   const [current, setCurrent] = useState<Date>(startOfDay(new Date()));
   const [proFilter, setProFilter] = useState<string>("all");
+  const [areaFilter, setAreaFilter] = useState<string>("all");
   const [open, setOpen] = useState(false);
+  const [selectedAppt, setSelectedAppt] = useState<string | null>(null);
 
   const days = useMemo(() => {
     if (view === "dia") return [current];
@@ -59,9 +72,14 @@ function Agenda() {
     return Array.from({ length: 7 }, (_, i) => addDays(start, i));
   }, [view, current]);
 
-  const visibleAppts = store.appointments.filter(
-    (a) => proFilter === "all" || a.professionalId === proFilter,
-  );
+  const visibleAppts = store.appointments.filter((a) => {
+    if (proFilter !== "all" && a.professionalId !== proFilter) return false;
+    if (areaFilter !== "all") {
+      const pro = store.professionals.find((p) => p.id === a.professionalId);
+      if (pro?.areaId !== areaFilter) return false;
+    }
+    return true;
+  });
 
   function shift(dir: number) {
     setCurrent((d) => addDays(d, dir * (view === "dia" ? 1 : 7)));
@@ -71,7 +89,7 @@ function Agenda() {
     <div>
       <PageHeader
         title="Agenda"
-        description="Organize consultas, envie confirmações e gerencie a rotina."
+        description="Clique em um agendamento para ver paciente, histórico e status financeiro."
         action={
           <>
             <Button
@@ -87,7 +105,7 @@ function Agenda() {
       />
 
       <Card className="p-3 md:p-4 shadow-soft mb-4">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
           <div className="flex items-center gap-1">
             <Button variant="ghost" size="icon" onClick={() => shift(-1)}>
               <ChevronLeft className="h-4 w-4" />
@@ -102,7 +120,21 @@ function Agenda() {
             </Button>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <Select value={areaFilter} onValueChange={setAreaFilter}>
+              <SelectTrigger className="w-[160px]">
+                <SelectValue placeholder="Área" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas as áreas</SelectItem>
+                {store.areas.map((a) => (
+                  <SelectItem key={a.id} value={a.id}>
+                    {a.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
             <Select value={proFilter} onValueChange={setProFilter}>
               <SelectTrigger className="w-[200px]">
                 <SelectValue />
@@ -173,7 +205,11 @@ function Agenda() {
               ) : (
                 <div className="space-y-2">
                   {dayAppts.map((a) => (
-                    <AppointmentCard key={a.id} appointmentId={a.id} />
+                    <AppointmentCard
+                      key={a.id}
+                      appointmentId={a.id}
+                      onSelect={() => setSelectedAppt(a.id)}
+                    />
                   ))}
                 </div>
               )}
@@ -181,26 +217,51 @@ function Agenda() {
           );
         })}
       </div>
+
+      <AppointmentDetailSheet
+        appointmentId={selectedAppt}
+        onClose={() => setSelectedAppt(null)}
+      />
     </div>
   );
 }
 
-function AppointmentCard({ appointmentId }: { appointmentId: string }) {
+function AppointmentCard({
+  appointmentId,
+  onSelect,
+}: {
+  appointmentId: string;
+  onSelect: () => void;
+}) {
   const store = useStore();
   const a = store.appointments.find((x) => x.id === appointmentId);
   if (!a) return null;
   const pt = store.patients.find((p) => p.id === a.patientId);
   const pro = store.professionals.find((p) => p.id === a.professionalId);
+  const fin = store.getPatientFinancialStatus(a.patientId);
+  const checkedIn = store.reception.some((r) => r.appointmentId === a.id);
 
   return (
-    <div className="group rounded-lg border bg-card p-3 hover:shadow-soft transition-smooth">
+    <button
+      type="button"
+      onClick={onSelect}
+      className="w-full text-left rounded-lg border bg-card p-3 hover:shadow-soft hover:border-primary/40 transition-smooth"
+    >
       <div className="flex items-start gap-3">
         <div className="text-sm font-semibold tabular-nums">
           {format(new Date(a.date), "HH:mm")}
         </div>
         <div className="h-full w-1 rounded-full self-stretch" style={{ background: pro?.color }} />
         <div className="flex-1 min-w-0">
-          <div className="text-sm font-medium truncate">{pt?.name}</div>
+          <div className="text-sm font-medium truncate flex items-center gap-1.5">
+            {pt?.name}
+            {fin === "inadimplente" && (
+              <span
+                className="h-1.5 w-1.5 rounded-full bg-destructive"
+                title="Inadimplente"
+              />
+            )}
+          </div>
           <div className="text-xs text-muted-foreground truncate">{pro?.name}</div>
           <div className="mt-2 flex items-center gap-1.5 flex-wrap">
             <Badge
@@ -209,52 +270,182 @@ function AppointmentCard({ appointmentId }: { appointmentId: string }) {
                 a.status === "confirmado"
                   ? "border-success/40 text-success"
                   : a.status === "pendente"
-                  ? "border-warning/40 text-warning"
-                  : "border-destructive/40 text-destructive"
+                    ? "border-warning/40 text-warning"
+                    : "border-destructive/40 text-destructive"
               }
             >
               {a.status}
             </Badge>
             <span className="text-xs text-muted-foreground">{a.durationMin}min</span>
+            {checkedIn && (
+              <Badge variant="outline" className="border-primary/40 text-primary text-[10px] py-0 h-4">
+                <ConciergeBell className="h-2.5 w-2.5 mr-0.5" /> Check-in
+              </Badge>
+            )}
           </div>
         </div>
       </div>
-      <div className="mt-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-smooth">
-        <Button
-          size="sm"
-          variant="ghost"
-          className="h-7 px-2 text-xs"
-          onClick={() => {
-            store.updateAppointmentStatus(a.id, "confirmado");
-            toast.success("Consulta confirmada");
-          }}
-        >
-          <Check className="h-3 w-3 mr-1" /> Confirmar
-        </Button>
-        <Button
-          size="sm"
-          variant="ghost"
-          className="h-7 px-2 text-xs"
-          onClick={() => {
-            store.sendReminder(a.id);
-            toast.success("Lembrete enviado via WhatsApp");
-          }}
-        >
-          <MessageCircle className="h-3 w-3 mr-1" /> Lembrar
-        </Button>
-        <Button
-          size="sm"
-          variant="ghost"
-          className="h-7 px-2 text-xs text-destructive"
-          onClick={() => {
-            store.updateAppointmentStatus(a.id, "cancelado");
-            toast.success("Consulta cancelada");
-          }}
-        >
-          <X className="h-3 w-3" />
-        </Button>
-      </div>
-    </div>
+    </button>
+  );
+}
+
+function AppointmentDetailSheet({
+  appointmentId,
+  onClose,
+}: {
+  appointmentId: string | null;
+  onClose: () => void;
+}) {
+  const store = useStore();
+  const a = appointmentId ? store.appointments.find((x) => x.id === appointmentId) : null;
+  if (!a) {
+    return (
+      <Sheet open={false} onOpenChange={(v) => !v && onClose()}>
+        <SheetContent />
+      </Sheet>
+    );
+  }
+  const pt = store.patients.find((p) => p.id === a.patientId);
+  const pro = store.professionals.find((p) => p.id === a.professionalId);
+  const area = store.areas.find((ar) => ar.id === pro?.areaId);
+  const fin = store.getPatientFinancialStatus(a.patientId);
+  const history = pt
+    ? store.appointments
+        .filter((x) => x.patientId === pt.id && x.id !== a.id)
+        .sort((x, y) => +new Date(y.date) - +new Date(x.date))
+        .slice(0, 4)
+    : [];
+  const checkedIn = store.reception.some((r) => r.appointmentId === a.id);
+
+  return (
+    <Sheet open={true} onOpenChange={(v) => !v && onClose()}>
+      <SheetContent className="w-full sm:max-w-md overflow-y-auto">
+        <SheetHeader>
+          <SheetTitle>Agendamento</SheetTitle>
+          <div className="text-sm text-muted-foreground">
+            {format(new Date(a.date), "EEEE, dd 'de' MMMM 'às' HH:mm", { locale: ptBR })}
+          </div>
+        </SheetHeader>
+
+        <div className="mt-5 space-y-5">
+          {/* Paciente */}
+          <Card className="p-4">
+            <div className="flex items-start gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full gradient-primary text-primary-foreground font-medium text-sm">
+                {pt?.name.split(" ").slice(0, 2).map((n) => n[0]).join("")}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="font-semibold">{pt?.name}</div>
+                <div className="text-xs text-muted-foreground flex items-center gap-1">
+                  <Phone className="h-3 w-3" /> {pt?.phone}
+                </div>
+                <div className="mt-2">
+                  <FinancialBadge status={fin} />
+                </div>
+              </div>
+            </div>
+          </Card>
+
+          {/* Profissional / área */}
+          <div className="rounded-lg border p-3 bg-card">
+            <div className="text-xs text-muted-foreground uppercase tracking-wider mb-1">
+              Profissional
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="h-2.5 w-2.5 rounded-full" style={{ background: pro?.color }} />
+              <div className="font-medium text-sm">{pro?.name}</div>
+            </div>
+            <div className="text-xs text-muted-foreground">
+              {pro?.specialty} · {area?.name} · {a.modality ?? "presencial"}
+            </div>
+          </div>
+
+          {/* Histórico rápido */}
+          <div>
+            <div className="text-xs uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1">
+              <History className="h-3 w-3" /> Últimos atendimentos
+            </div>
+            {history.length === 0 ? (
+              <div className="text-xs text-muted-foreground py-3">
+                Sem histórico anterior.
+              </div>
+            ) : (
+              <div className="space-y-1.5">
+                {history.map((h) => {
+                  const hpro = store.professionals.find((p) => p.id === h.professionalId);
+                  return (
+                    <div key={h.id} className="flex items-center gap-2 text-xs">
+                      <span className="tabular-nums text-muted-foreground">
+                        {format(new Date(h.date), "dd/MM/yy")}
+                      </span>
+                      <span className="h-1.5 w-1.5 rounded-full" style={{ background: hpro?.color }} />
+                      <span className="flex-1 truncate">{hpro?.name}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {a.notes && (
+            <div className="rounded-lg border p-3 bg-muted/30">
+              <div className="text-xs uppercase tracking-wider text-muted-foreground mb-1">
+                Observações
+              </div>
+              <div className="text-sm">{a.notes}</div>
+            </div>
+          )}
+
+          {/* Ações */}
+          <div className="grid grid-cols-2 gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                store.updateAppointmentStatus(a.id, "confirmado");
+                toast.success("Consulta confirmada");
+              }}
+            >
+              <Check className="h-3 w-3 mr-1" /> Confirmar
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                store.sendReminder(a.id);
+                toast.success("Lembrete enviado via WhatsApp");
+              }}
+            >
+              <MessageCircle className="h-3 w-3 mr-1" /> Lembrete
+            </Button>
+            <Button
+              size="sm"
+              className="col-span-2 gradient-primary"
+              disabled={checkedIn}
+              onClick={() => {
+                store.checkIn(a.id);
+                toast.success("Check-in realizado · enviado para Recepção");
+              }}
+            >
+              <ArrowRight className="h-3 w-3 mr-1" />{" "}
+              {checkedIn ? "Já está na recepção" : "Marcar chegada (check-in)"}
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="col-span-2 text-destructive"
+              onClick={() => {
+                store.updateAppointmentStatus(a.id, "cancelado");
+                toast.success("Consulta cancelada");
+                onClose();
+              }}
+            >
+              <X className="h-3 w-3 mr-1" /> Cancelar consulta
+            </Button>
+          </div>
+        </div>
+      </SheetContent>
+    </Sheet>
   );
 }
 
@@ -272,6 +463,7 @@ function NewAppointmentDialog({
   const [professionalId, setProfessionalId] = useState("");
   const [date, setDate] = useState(format(defaultDate, "yyyy-MM-dd"));
   const [time, setTime] = useState("09:00");
+  const [modality, setModality] = useState<"presencial" | "online">("presencial");
   const [notes, setNotes] = useState("");
 
   function submit(e: React.FormEvent) {
@@ -284,6 +476,7 @@ function NewAppointmentDialog({
       date: iso,
       durationMin: 45,
       status: "pendente",
+      modality,
       notes,
     });
     toast.success("Consulta agendada — confirmação enviada via WhatsApp");
@@ -327,11 +520,14 @@ function NewAppointmentDialog({
                 <SelectValue placeholder="Selecione" />
               </SelectTrigger>
               <SelectContent>
-                {store.professionals.map((p) => (
-                  <SelectItem key={p.id} value={p.id}>
-                    {p.name} — {p.specialty}
-                  </SelectItem>
-                ))}
+                {store.professionals.map((p) => {
+                  const area = store.areas.find((a) => a.id === p.areaId);
+                  return (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.name} — {area?.name ?? p.specialty}
+                    </SelectItem>
+                  );
+                })}
               </SelectContent>
             </Select>
           </div>
@@ -344,6 +540,18 @@ function NewAppointmentDialog({
               <Label>Horário</Label>
               <Input type="time" value={time} onChange={(e) => setTime(e.target.value)} required />
             </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Modalidade</Label>
+            <Select value={modality} onValueChange={(v) => setModality(v as "presencial" | "online")}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="presencial">Presencial</SelectItem>
+                <SelectItem value="online">Online</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           <div className="space-y-1.5">
             <Label>Observações</Label>

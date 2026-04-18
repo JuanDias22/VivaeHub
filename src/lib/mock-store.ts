@@ -3,11 +3,49 @@
 
 import { addDays, addHours, format, startOfDay } from "date-fns";
 
+export type Area = {
+  id: string;
+  name: string;
+  color: string;
+};
+
 export type Professional = {
   id: string;
   name: string;
   specialty: string;
+  areaId: string;
   color: string;
+};
+
+export type ActivityLevel = "sedentario" | "leve" | "moderado" | "intenso" | "atleta";
+export type Goal =
+  | "emagrecimento"
+  | "ganho_massa"
+  | "saude_bemestar"
+  | "performance"
+  | "reeducacao"
+  | "condicao_clinica";
+
+export type Anamnesis = {
+  filledAt: string;
+  age?: number;
+  sex?: "F" | "M" | "outro";
+  email?: string;
+  goal?: Goal;
+  diseases?: string;
+  allergies?: string;
+  medications?: string;
+  surgeries?: string;
+  eatingHabits?: string;
+  activity?: ActivityLevel;
+  evaluation?: "dobras" | "bioimpedancia" | "nenhuma";
+};
+
+export type ExamFile = {
+  id: string;
+  name: string;
+  sizeKb: number;
+  uploadedAt: string;
 };
 
 export type Patient = {
@@ -15,7 +53,11 @@ export type Patient = {
   name: string;
   phone: string;
   birthDate: string;
+  email?: string;
+  memberId?: string; // vínculo opcional com associado
   notes: PatientNote[];
+  anamnesis?: Anamnesis;
+  exams: ExamFile[];
 };
 
 export type PatientNote = {
@@ -32,6 +74,7 @@ export type Appointment = {
   date: string; // ISO
   durationMin: number;
   status: "confirmado" | "pendente" | "cancelado";
+  modality?: "presencial" | "online";
   notes?: string;
 };
 
@@ -59,24 +102,51 @@ export type WhatsAppLog = {
   to: string;
   message: string;
   sentAt: string;
-  kind: "confirmacao" | "lembrete";
+  kind: "confirmacao" | "lembrete" | "anamnese";
+};
+
+export type ReceptionStatus = "aguardando" | "em_atendimento" | "finalizado";
+
+export type ReceptionEntry = {
+  id: string;
+  appointmentId: string;
+  arrivedAt: string;
+  status: ReceptionStatus;
+  startedAt?: string;
+  finishedAt?: string;
 };
 
 export type Clinic = {
   name: string;
   ownerEmail: string;
+  slug: string;
 };
 
 type Listener = () => void;
 
+const PALETTE = [
+  "oklch(0.58 0.13 190)",
+  "oklch(0.65 0.13 220)",
+  "oklch(0.66 0.15 155)",
+  "oklch(0.7 0.14 75)",
+  "oklch(0.62 0.16 30)",
+  "oklch(0.6 0.18 300)",
+];
+
 class Store {
-  clinic: Clinic = { name: "Clínica Vitalis", ownerEmail: "demo@vitalis.com" };
+  clinic: Clinic = { name: "Clínica Vitalis", ownerEmail: "demo@vitalis.com", slug: "vitalis" };
   authed = false;
 
+  areas: Area[] = [
+    { id: "ar1", name: "Nutrição", color: "oklch(0.66 0.15 155)" },
+    { id: "ar2", name: "Endocrinologia", color: "oklch(0.65 0.13 220)" },
+    { id: "ar3", name: "Psicologia", color: "oklch(0.6 0.18 300)" },
+  ];
+
   professionals: Professional[] = [
-    { id: "p1", name: "Dra. Marina Costa", specialty: "Nutricionista", color: "oklch(0.58 0.13 190)" },
-    { id: "p2", name: "Dr. André Mello", specialty: "Endocrinologista", color: "oklch(0.65 0.13 220)" },
-    { id: "p3", name: "Dra. Lívia Souza", specialty: "Psicóloga", color: "oklch(0.66 0.15 155)" },
+    { id: "p1", name: "Dra. Marina Costa", specialty: "Nutricionista", areaId: "ar1", color: "oklch(0.66 0.15 155)" },
+    { id: "p2", name: "Dr. André Mello", specialty: "Endocrinologista", areaId: "ar2", color: "oklch(0.65 0.13 220)" },
+    { id: "p3", name: "Dra. Lívia Souza", specialty: "Psicóloga", areaId: "ar3", color: "oklch(0.6 0.18 300)" },
   ];
 
   patients: Patient[] = [
@@ -85,8 +155,27 @@ class Store {
       name: "Beatriz Almeida",
       phone: "(11) 98765-4321",
       birthDate: "1992-03-12",
+      email: "beatriz@email.com",
+      memberId: "m2",
       notes: [
         { id: "n1", date: "2025-03-10", professionalId: "p1", content: "Iniciou plano alimentar low-carb. Meta: -4kg em 60 dias." },
+      ],
+      anamnesis: {
+        filledAt: "2025-03-08",
+        age: 33,
+        sex: "F",
+        email: "beatriz@email.com",
+        goal: "emagrecimento",
+        diseases: "Nenhuma",
+        allergies: "Lactose",
+        medications: "Nenhum",
+        surgeries: "Nenhuma",
+        eatingHabits: "3 refeições principais, beliscos à tarde.",
+        activity: "leve",
+        evaluation: "bioimpedancia",
+      },
+      exams: [
+        { id: "ex1", name: "Hemograma_completo.pdf", sizeKb: 420, uploadedAt: "2025-03-08" },
       ],
     },
     {
@@ -95,6 +184,7 @@ class Store {
       phone: "(11) 91234-5678",
       birthDate: "1985-07-22",
       notes: [],
+      exams: [],
     },
     {
       id: "pt3",
@@ -104,6 +194,7 @@ class Store {
       notes: [
         { id: "n2", date: "2025-02-20", professionalId: "p3", content: "Sessão inicial — ansiedade alimentar." },
       ],
+      exams: [],
     },
   ];
 
@@ -151,6 +242,8 @@ class Store {
 
   whatsappLogs: WhatsAppLog[] = [];
 
+  reception: ReceptionEntry[] = [];
+
   private listeners = new Set<Listener>();
 
   constructor() {
@@ -160,11 +253,11 @@ class Store {
   private seedAppointments() {
     const today = startOfDay(new Date());
     const seed: Appointment[] = [
-      { id: "a1", patientId: "pt1", professionalId: "p1", date: addHours(today, 9).toISOString(), durationMin: 45, status: "confirmado" },
-      { id: "a2", patientId: "pt2", professionalId: "p2", date: addHours(today, 10).toISOString(), durationMin: 30, status: "pendente" },
-      { id: "a3", patientId: "pt3", professionalId: "p3", date: addHours(today, 14).toISOString(), durationMin: 50, status: "confirmado" },
-      { id: "a4", patientId: "pt1", professionalId: "p1", date: addHours(addDays(today, 1), 11).toISOString(), durationMin: 45, status: "pendente" },
-      { id: "a5", patientId: "pt2", professionalId: "p1", date: addHours(addDays(today, 2), 15).toISOString(), durationMin: 45, status: "confirmado" },
+      { id: "a1", patientId: "pt1", professionalId: "p1", date: addHours(today, 9).toISOString(), durationMin: 45, status: "confirmado", modality: "presencial" },
+      { id: "a2", patientId: "pt2", professionalId: "p2", date: addHours(today, 10).toISOString(), durationMin: 30, status: "pendente", modality: "presencial" },
+      { id: "a3", patientId: "pt3", professionalId: "p3", date: addHours(today, 14).toISOString(), durationMin: 50, status: "confirmado", modality: "online" },
+      { id: "a4", patientId: "pt1", professionalId: "p1", date: addHours(addDays(today, 1), 11).toISOString(), durationMin: 45, status: "pendente", modality: "presencial" },
+      { id: "a5", patientId: "pt2", professionalId: "p1", date: addHours(addDays(today, 2), 15).toISOString(), durationMin: 45, status: "confirmado", modality: "presencial" },
     ];
     this.appointments = seed;
   }
@@ -185,7 +278,13 @@ class Store {
     this.emit();
   }
   signup(clinicName: string, email: string) {
-    this.clinic = { name: clinicName, ownerEmail: email };
+    const slug = clinicName
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/(^-|-$)/g, "") || "clinica";
+    this.clinic = { name: clinicName, ownerEmail: email, slug };
     this.authed = true;
     this.emit();
   }
@@ -194,9 +293,33 @@ class Store {
     this.emit();
   }
 
+  // --- Areas ---
+  addArea(name: string) {
+    this.areas.push({
+      id: crypto.randomUUID(),
+      name,
+      color: PALETTE[this.areas.length % PALETTE.length],
+    });
+    this.emit();
+  }
+  removeArea(id: string) {
+    if (this.professionals.some((p) => p.areaId === id)) return false;
+    this.areas = this.areas.filter((a) => a.id !== id);
+    this.emit();
+    return true;
+  }
+
   // --- Patients ---
-  addPatient(p: Omit<Patient, "id" | "notes">) {
-    this.patients.push({ ...p, id: crypto.randomUUID(), notes: [] });
+  addPatient(p: Omit<Patient, "id" | "notes" | "exams">) {
+    const id = crypto.randomUUID();
+    this.patients.push({ ...p, id, notes: [], exams: [] });
+    this.emit();
+    return id;
+  }
+  updatePatient(id: string, patch: Partial<Patient>) {
+    const pt = this.patients.find((x) => x.id === id);
+    if (!pt) return;
+    Object.assign(pt, patch);
     this.emit();
   }
   addPatientNote(patientId: string, professionalId: string, content: string) {
@@ -210,14 +333,40 @@ class Store {
     });
     this.emit();
   }
+  setPatientAnamnesis(patientId: string, a: Anamnesis) {
+    const pt = this.patients.find((x) => x.id === patientId);
+    if (!pt) return;
+    pt.anamnesis = a;
+    this.emit();
+  }
+  addPatientExam(patientId: string, name: string, sizeKb: number) {
+    const pt = this.patients.find((x) => x.id === patientId);
+    if (!pt) return;
+    pt.exams.unshift({
+      id: crypto.randomUUID(),
+      name,
+      sizeKb,
+      uploadedAt: new Date().toISOString(),
+    });
+    this.emit();
+  }
+
+  /** Returns delinquent status for a patient (via member link). */
+  getPatientFinancialStatus(patientId: string): "adimplente" | "inadimplente" | "nao_associado" {
+    const pt = this.patients.find((x) => x.id === patientId);
+    if (!pt?.memberId) return "nao_associado";
+    const m = this.members.find((x) => x.id === pt.memberId);
+    if (!m) return "nao_associado";
+    return m.payments.some((p) => p.status === "pendente") ? "inadimplente" : "adimplente";
+  }
 
   // --- Professionals ---
   addProfessional(p: Omit<Professional, "id" | "color">) {
-    const palette = ["oklch(0.58 0.13 190)", "oklch(0.65 0.13 220)", "oklch(0.66 0.15 155)", "oklch(0.7 0.14 75)"];
+    const area = this.areas.find((a) => a.id === p.areaId);
     this.professionals.push({
       ...p,
       id: crypto.randomUUID(),
-      color: palette[this.professionals.length % palette.length],
+      color: area?.color ?? PALETTE[this.professionals.length % PALETTE.length],
     });
     this.emit();
   }
@@ -239,6 +388,7 @@ class Store {
       });
     }
     this.emit();
+    return id;
   }
   updateAppointmentStatus(id: string, status: Appointment["status"]) {
     const a = this.appointments.find((x) => x.id === id);
@@ -263,16 +413,47 @@ class Store {
     this.emit();
   }
 
+  // --- Reception ---
+  checkIn(appointmentId: string) {
+    const exists = this.reception.find((r) => r.appointmentId === appointmentId);
+    if (exists) return;
+    this.reception.push({
+      id: crypto.randomUUID(),
+      appointmentId,
+      arrivedAt: new Date().toISOString(),
+      status: "aguardando",
+    });
+    this.emit();
+  }
+  callPatient(receptionId: string) {
+    const r = this.reception.find((x) => x.id === receptionId);
+    if (!r) return;
+    r.status = "em_atendimento";
+    r.startedAt = new Date().toISOString();
+    this.emit();
+  }
+  finishReception(receptionId: string) {
+    const r = this.reception.find((x) => x.id === receptionId);
+    if (!r) return;
+    r.status = "finalizado";
+    r.finishedAt = new Date().toISOString();
+    const a = this.appointments.find((x) => x.id === r.appointmentId);
+    if (a) a.status = "confirmado";
+    this.emit();
+  }
+
   // --- Members ---
   addMember(m: Omit<Member, "id" | "payments" | "monthlyFee" | "active"> & { monthlyFee?: number }) {
+    const id = crypto.randomUUID();
     this.members.push({
       ...m,
-      id: crypto.randomUUID(),
+      id,
       active: true,
       monthlyFee: m.monthlyFee ?? 50,
       payments: [],
     });
     this.emit();
+    return id;
   }
   togglePayment(memberId: string, paymentId: string) {
     const m = this.members.find((x) => x.id === memberId);
@@ -310,3 +491,20 @@ class Store {
 }
 
 export const store = new Store();
+
+export const GOAL_LABEL: Record<Goal, string> = {
+  emagrecimento: "Emagrecimento",
+  ganho_massa: "Ganho de massa",
+  saude_bemestar: "Saúde e bem-estar",
+  performance: "Performance esportiva",
+  reeducacao: "Reeducação alimentar",
+  condicao_clinica: "Condição clínica",
+};
+
+export const ACTIVITY_LABEL: Record<ActivityLevel, string> = {
+  sedentario: "Sedentário",
+  leve: "Leve",
+  moderado: "Moderado",
+  intenso: "Intenso",
+  atleta: "Atleta",
+};

@@ -9,12 +9,22 @@ import {
   LogOut,
   Activity,
   MessageCircle,
+  ConciergeBell,
+  ExternalLink,
 } from "lucide-react";
 import { useStore } from "@/hooks/use-store";
 import { cn } from "@/lib/utils";
 
 type NavItem = {
-  to: "/app" | "/app/agenda" | "/app/pacientes" | "/app/associados" | "/app/financeiro" | "/app/profissionais" | "/app/whatsapp";
+  to:
+    | "/app"
+    | "/app/agenda"
+    | "/app/recepcao"
+    | "/app/pacientes"
+    | "/app/associados"
+    | "/app/financeiro"
+    | "/app/profissionais"
+    | "/app/whatsapp";
   label: string;
   icon: typeof LayoutDashboard;
   exact?: boolean;
@@ -23,6 +33,7 @@ type NavItem = {
 const nav: NavItem[] = [
   { to: "/app", label: "Dashboard", icon: LayoutDashboard, exact: true },
   { to: "/app/agenda", label: "Agenda", icon: CalendarDays },
+  { to: "/app/recepcao", label: "Recepção", icon: ConciergeBell },
   { to: "/app/pacientes", label: "Pacientes", icon: Users },
   { to: "/app/associados", label: "Associados", icon: HeartHandshake },
   { to: "/app/financeiro", label: "Financeiro", icon: Wallet },
@@ -69,6 +80,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               </Link>
             );
           })}
+
+          <Link
+            to="/portal/$slug"
+            params={{ slug: store.clinic.slug }}
+            target="_blank"
+            className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-sidebar-foreground/75 hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground transition-smooth mt-4 border border-dashed border-sidebar-border"
+          >
+            <ExternalLink className="h-4 w-4" />
+            Portal do paciente
+          </Link>
         </nav>
 
         <div className="border-t border-sidebar-border p-3">
