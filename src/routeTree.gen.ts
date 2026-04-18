@@ -22,6 +22,7 @@ import { Route as AppPacientesRouteImport } from './routes/app.pacientes'
 import { Route as AppFinanceiroRouteImport } from './routes/app.financeiro'
 import { Route as AppAssociadosRouteImport } from './routes/app.associados'
 import { Route as AppAgendaRouteImport } from './routes/app.agenda'
+import { Route as PortalSlugProRouteImport } from './routes/portal.$slug.$pro'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
@@ -88,6 +89,11 @@ const AppAgendaRoute = AppAgendaRouteImport.update({
   path: '/agenda',
   getParentRoute: () => AppRoute,
 } as any)
+const PortalSlugProRoute = PortalSlugProRouteImport.update({
+  id: '/$pro',
+  path: '/$pro',
+  getParentRoute: () => PortalSlugRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -101,8 +107,9 @@ export interface FileRoutesByFullPath {
   '/app/profissionais': typeof AppProfissionaisRoute
   '/app/recepcao': typeof AppRecepcaoRoute
   '/app/whatsapp': typeof AppWhatsappRoute
-  '/portal/$slug': typeof PortalSlugRoute
+  '/portal/$slug': typeof PortalSlugRouteWithChildren
   '/app/': typeof AppIndexRoute
+  '/portal/$slug/$pro': typeof PortalSlugProRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -115,8 +122,9 @@ export interface FileRoutesByTo {
   '/app/profissionais': typeof AppProfissionaisRoute
   '/app/recepcao': typeof AppRecepcaoRoute
   '/app/whatsapp': typeof AppWhatsappRoute
-  '/portal/$slug': typeof PortalSlugRoute
+  '/portal/$slug': typeof PortalSlugRouteWithChildren
   '/app': typeof AppIndexRoute
+  '/portal/$slug/$pro': typeof PortalSlugProRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -131,8 +139,9 @@ export interface FileRoutesById {
   '/app/profissionais': typeof AppProfissionaisRoute
   '/app/recepcao': typeof AppRecepcaoRoute
   '/app/whatsapp': typeof AppWhatsappRoute
-  '/portal/$slug': typeof PortalSlugRoute
+  '/portal/$slug': typeof PortalSlugRouteWithChildren
   '/app/': typeof AppIndexRoute
+  '/portal/$slug/$pro': typeof PortalSlugProRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -150,6 +159,7 @@ export interface FileRouteTypes {
     | '/app/whatsapp'
     | '/portal/$slug'
     | '/app/'
+    | '/portal/$slug/$pro'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -164,6 +174,7 @@ export interface FileRouteTypes {
     | '/app/whatsapp'
     | '/portal/$slug'
     | '/app'
+    | '/portal/$slug/$pro'
   id:
     | '__root__'
     | '/'
@@ -179,6 +190,7 @@ export interface FileRouteTypes {
     | '/app/whatsapp'
     | '/portal/$slug'
     | '/app/'
+    | '/portal/$slug/$pro'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -186,7 +198,7 @@ export interface RootRouteChildren {
   AppRoute: typeof AppRouteWithChildren
   CadastroRoute: typeof CadastroRoute
   LoginRoute: typeof LoginRoute
-  PortalSlugRoute: typeof PortalSlugRoute
+  PortalSlugRoute: typeof PortalSlugRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
@@ -282,6 +294,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAgendaRouteImport
       parentRoute: typeof AppRoute
     }
+    '/portal/$slug/$pro': {
+      id: '/portal/$slug/$pro'
+      path: '/$pro'
+      fullPath: '/portal/$slug/$pro'
+      preLoaderRoute: typeof PortalSlugProRouteImport
+      parentRoute: typeof PortalSlugRoute
+    }
   }
 }
 
@@ -309,12 +328,24 @@ const AppRouteChildren: AppRouteChildren = {
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 
+interface PortalSlugRouteChildren {
+  PortalSlugProRoute: typeof PortalSlugProRoute
+}
+
+const PortalSlugRouteChildren: PortalSlugRouteChildren = {
+  PortalSlugProRoute: PortalSlugProRoute,
+}
+
+const PortalSlugRouteWithChildren = PortalSlugRoute._addFileChildren(
+  PortalSlugRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRoute: AppRouteWithChildren,
   CadastroRoute: CadastroRoute,
   LoginRoute: LoginRoute,
-  PortalSlugRoute: PortalSlugRoute,
+  PortalSlugRoute: PortalSlugRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
