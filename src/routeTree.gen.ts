@@ -15,6 +15,7 @@ import { Route as AppRouteImport } from './routes/app'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppIndexRouteImport } from './routes/app.index'
 import { Route as AppWhatsappRouteImport } from './routes/app.whatsapp'
+import { Route as AppRecepcaoRouteImport } from './routes/app.recepcao'
 import { Route as AppProfissionaisRouteImport } from './routes/app.profissionais'
 import { Route as AppPacientesRouteImport } from './routes/app.pacientes'
 import { Route as AppFinanceiroRouteImport } from './routes/app.financeiro'
@@ -49,6 +50,11 @@ const AppIndexRoute = AppIndexRouteImport.update({
 const AppWhatsappRoute = AppWhatsappRouteImport.update({
   id: '/whatsapp',
   path: '/whatsapp',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppRecepcaoRoute = AppRecepcaoRouteImport.update({
+  id: '/recepcao',
+  path: '/recepcao',
   getParentRoute: () => AppRoute,
 } as any)
 const AppProfissionaisRoute = AppProfissionaisRouteImport.update({
@@ -87,6 +93,7 @@ export interface FileRoutesByFullPath {
   '/app/financeiro': typeof AppFinanceiroRoute
   '/app/pacientes': typeof AppPacientesRoute
   '/app/profissionais': typeof AppProfissionaisRoute
+  '/app/recepcao': typeof AppRecepcaoRoute
   '/app/whatsapp': typeof AppWhatsappRoute
   '/app/': typeof AppIndexRoute
 }
@@ -99,6 +106,7 @@ export interface FileRoutesByTo {
   '/app/financeiro': typeof AppFinanceiroRoute
   '/app/pacientes': typeof AppPacientesRoute
   '/app/profissionais': typeof AppProfissionaisRoute
+  '/app/recepcao': typeof AppRecepcaoRoute
   '/app/whatsapp': typeof AppWhatsappRoute
   '/app': typeof AppIndexRoute
 }
@@ -113,6 +121,7 @@ export interface FileRoutesById {
   '/app/financeiro': typeof AppFinanceiroRoute
   '/app/pacientes': typeof AppPacientesRoute
   '/app/profissionais': typeof AppProfissionaisRoute
+  '/app/recepcao': typeof AppRecepcaoRoute
   '/app/whatsapp': typeof AppWhatsappRoute
   '/app/': typeof AppIndexRoute
 }
@@ -128,6 +137,7 @@ export interface FileRouteTypes {
     | '/app/financeiro'
     | '/app/pacientes'
     | '/app/profissionais'
+    | '/app/recepcao'
     | '/app/whatsapp'
     | '/app/'
   fileRoutesByTo: FileRoutesByTo
@@ -140,6 +150,7 @@ export interface FileRouteTypes {
     | '/app/financeiro'
     | '/app/pacientes'
     | '/app/profissionais'
+    | '/app/recepcao'
     | '/app/whatsapp'
     | '/app'
   id:
@@ -153,6 +164,7 @@ export interface FileRouteTypes {
     | '/app/financeiro'
     | '/app/pacientes'
     | '/app/profissionais'
+    | '/app/recepcao'
     | '/app/whatsapp'
     | '/app/'
   fileRoutesById: FileRoutesById
@@ -208,6 +220,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppWhatsappRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/recepcao': {
+      id: '/app/recepcao'
+      path: '/recepcao'
+      fullPath: '/app/recepcao'
+      preLoaderRoute: typeof AppRecepcaoRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/app/profissionais': {
       id: '/app/profissionais'
       path: '/profissionais'
@@ -252,6 +271,7 @@ interface AppRouteChildren {
   AppFinanceiroRoute: typeof AppFinanceiroRoute
   AppPacientesRoute: typeof AppPacientesRoute
   AppProfissionaisRoute: typeof AppProfissionaisRoute
+  AppRecepcaoRoute: typeof AppRecepcaoRoute
   AppWhatsappRoute: typeof AppWhatsappRoute
   AppIndexRoute: typeof AppIndexRoute
 }
@@ -262,6 +282,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppFinanceiroRoute: AppFinanceiroRoute,
   AppPacientesRoute: AppPacientesRoute,
   AppProfissionaisRoute: AppProfissionaisRoute,
+  AppRecepcaoRoute: AppRecepcaoRoute,
   AppWhatsappRoute: AppWhatsappRoute,
   AppIndexRoute: AppIndexRoute,
 }
