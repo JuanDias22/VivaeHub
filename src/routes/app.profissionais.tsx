@@ -164,6 +164,14 @@ function NewProDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v:
   const [name, setName] = useState("");
   const [specialty, setSpecialty] = useState("");
   const [areaId, setAreaId] = useState(store.areas[0]?.id ?? "");
+  const [slug, setSlug] = useState("");
+
+  const autoSlug = name
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "");
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -171,11 +179,12 @@ function NewProDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v:
       toast.error("Cadastre uma área primeiro");
       return;
     }
-    store.addProfessional({ name, specialty, areaId });
+    store.addProfessional({ name, specialty, areaId, slug: slug.trim() || autoSlug });
     toast.success("Profissional cadastrado");
     onOpenChange(false);
     setName("");
     setSpecialty("");
+    setSlug("");
   }
 
   return (
@@ -212,6 +221,17 @@ function NewProDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v:
                 ))}
               </SelectContent>
             </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Slug do portal (URL)</Label>
+            <Input
+              value={slug}
+              onChange={(e) => setSlug(e.target.value)}
+              placeholder={autoSlug || "ex: marina-costa"}
+            />
+            <p className="text-xs text-muted-foreground">
+              Usado em /portal/{store.clinic.slug}/<strong>{slug || autoSlug || "slug"}</strong>
+            </p>
           </div>
           <DialogFooter>
             <Button type="submit" className="gradient-primary">Cadastrar</Button>
