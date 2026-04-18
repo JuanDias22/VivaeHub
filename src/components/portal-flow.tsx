@@ -931,16 +931,34 @@ function ScreenConfirmacao(props: {
         </p>
       </div>
 
-      <div className="rounded-lg border bg-primary/5 border-primary/20 p-4">
-        <div className="flex items-center gap-2 text-sm font-semibold mb-1">
+      <div className="rounded-lg border bg-primary/5 border-primary/20 p-4 space-y-3">
+        <div className="flex items-center gap-2 text-sm font-semibold">
           <CalendarCheck className="h-4 w-4 text-primary" /> Sua consulta
         </div>
         <div className="text-sm">
           {format(dateObj, "EEEE, dd 'de' MMMM 'às' HH:mm", { locale: ptBR })}
+          <span className="text-muted-foreground"> · {props.modality}</span>
         </div>
-        <div className="text-xs text-muted-foreground">
-          {pro?.name ?? "—"} · {area?.name ?? "—"} · {props.modality}
-        </div>
+        {pro && (
+          <div className="flex items-center gap-3 pt-2 border-t border-primary/15">
+            <div
+              className="h-9 w-9 rounded-full flex items-center justify-center text-white text-xs font-medium shrink-0"
+              style={{ background: pro.color }}
+            >
+              {pro.name.split(" ").slice(-2).map((n) => n[0]).join("").toUpperCase()}
+            </div>
+            <div className="min-w-0">
+              <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                Profissional
+              </div>
+              <div className="text-sm font-semibold truncate">{pro.name}</div>
+              <div className="text-xs text-muted-foreground truncate">
+                {pro.specialty}
+                {area ? ` · ${area.name}` : ""}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-2 gap-3 text-sm">
@@ -1019,6 +1037,7 @@ function Success({
   const pro = fixedProfessionalId
     ? store.professionals.find((p) => p.id === fixedProfessionalId)
     : undefined;
+  const area = pro ? store.areas.find((a) => a.id === pro.areaId) : undefined;
   return (
     <div className="min-h-screen bg-background flex items-center justify-center px-4">
       <Card className="max-w-md w-full p-8 text-center shadow-elegant">
@@ -1026,10 +1045,30 @@ function Success({
           <CheckCircle2 className="h-7 w-7 text-success" />
         </div>
         <h1 className="text-2xl font-semibold mb-2">Agendamento confirmado!</h1>
-        <p className="text-sm text-muted-foreground mb-6">
+        <p className="text-sm text-muted-foreground mb-5">
           Você receberá uma confirmação via WhatsApp em instantes. Sua anamnese e exames
           já estão no seu prontuário.
         </p>
+        {pro && (
+          <div className="mb-6 flex items-center gap-3 rounded-xl border bg-primary/5 border-primary/20 p-4 text-left">
+            <div
+              className="h-10 w-10 rounded-full flex items-center justify-center text-white text-xs font-medium shrink-0"
+              style={{ background: pro.color }}
+            >
+              {pro.name.split(" ").slice(-2).map((n) => n[0]).join("").toUpperCase()}
+            </div>
+            <div className="min-w-0">
+              <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                Você será atendido por
+              </div>
+              <div className="text-sm font-semibold truncate">{pro.name}</div>
+              <div className="text-xs text-muted-foreground truncate">
+                {pro.specialty}
+                {area ? ` · ${area.name}` : ""}
+              </div>
+            </div>
+          </div>
+        )}
         {pro ? (
           <Link
             to="/portal/$slug/$pro"
