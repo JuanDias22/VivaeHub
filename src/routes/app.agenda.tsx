@@ -41,6 +41,8 @@ import {
   Phone,
   History,
   ArrowRight,
+  CalendarOff,
+  AlertTriangle,
 } from "lucide-react";
 import {
   addDays,
@@ -52,6 +54,7 @@ import {
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
 import { FinancialBadge } from "@/components/financial-badge";
+import { BlockScheduleDialog } from "@/components/block-schedule-dialog";
 
 export const Route = createFileRoute("/app/agenda")({
   component: Agenda,
@@ -99,6 +102,15 @@ function Agenda() {
             >
               Hoje
             </Button>
+            <BlockScheduleDialog
+              defaultDate={current}
+              professionalId={proFilter !== "all" ? proFilter : undefined}
+              trigger={
+                <Button variant="outline" size="sm">
+                  <CalendarOff className="h-4 w-4 mr-1" /> Bloquear período
+                </Button>
+              }
+            />
             <NewAppointmentDialog open={open} onOpenChange={setOpen} defaultDate={current} />
           </>
         }
@@ -183,6 +195,19 @@ function Agenda() {
             .filter((a) => isSameDay(new Date(a.date), day))
             .sort((a, b) => +new Date(a.date) - +new Date(b.date));
 
+          const dayStart = startOfDay(day).getTime();
+          const dayEnd = dayStart + 24 * 60 * 60_000;
+          const dayBlocks = store.scheduleBlocks.filter((b) => {
+            if (proFilter !== "all" && b.professionalId !== proFilter) return false;
+            if (areaFilter !== "all") {
+              const pro = store.professionals.find((p) => p.id === b.professionalId);
+              if (pro?.areaId !== areaFilter) return false;
+            }
+            const bs = new Date(b.start).getTime();
+            const be = new Date(b.end).getTime();
+            return bs < dayEnd && be > dayStart;
+          });
+
           return (
             <Card key={day.toISOString()} className="p-4 shadow-soft min-h-[300px]">
               <div className="flex items-center justify-between mb-3 pb-3 border-b">
@@ -196,6 +221,45 @@ function Agenda() {
                 </div>
                 <Badge variant="secondary">{dayAppts.length}</Badge>
               </div>
+
+              {dayBlocks.length > 0 && (
+                <div className="mb-3 space-y-1.5">
+                  {dayBlocks.map((b) => {
+                    const pro = store.professionals.find((p) => p.id === b.professionalId);
+                    return (
+                      <div
+                        key={b.id}
+                        className="flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/5 px-2.5 py-1.5 text-xs"
+                      >
+                        <CalendarOff className="h-3.5 w-3.5 text-destructive mt-0.5 shrink-0" />
+                        <div className="min-w-0 flex-1">
+                          <div className="font-medium text-destructive">
+                            {b.kind === "day"
+                              ? "Dia bloqueado"
+                              : b.kind === "range"
+                                ? "Período de indisponibilidade"
+                                : `Bloqueado ${format(new Date(b.start), "HH:mm")}–${format(new Date(b.end), "HH:mm")}`}
+                          </div>
+                          <div className="text-muted-foreground truncate">
+                            {pro?.name} · {b.reason ?? "Indisponível"}
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            store.removeBlock(b.id);
+                            toast.success("Bloqueio removido");
+                          }}
+                          className="text-muted-foreground hover:text-destructive transition-smooth"
+                          title="Remover bloqueio"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
 
               {dayAppts.length === 0 ? (
                 <div className="flex flex-col items-center justify-center text-center py-12 text-muted-foreground">
@@ -240,6 +304,7 @@ function AppointmentCard({
   const pro = store.professionals.find((p) => p.id === a.professionalId);
   const checkedIn = store.reception.some((r) => r.appointmentId === a.id);
   const isContrib = pt?.isContributor ?? false;
+  const affected = (a.notes ?? "").includes("[Afetada por indisponibilidade]");
 
   return (
     <button
@@ -280,6 +345,15 @@ function AppointmentCard({
             {checkedIn && (
               <Badge variant="outline" className="border-primary/40 text-primary text-[10px] py-0 h-4">
                 <ConciergeBell className="h-2.5 w-2.5 mr-0.5" /> Check-in
+              </Badge>
+            )}
+            {affected && (
+              <Badge
+                variant="outline"
+                className="border-destructive/40 text-destructive text-[10px] py-0 h-4"
+                title="Afetada por indisponibilidade do profissional"
+              >
+                <AlertTriangle className="h-2.5 w-2.5 mr-0.5" /> Indisponível
               </Badge>
             )}
           </div>
