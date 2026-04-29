@@ -1,11 +1,12 @@
-import { useState } from "react";
-import { Link } from "@tanstack/react-router";
+import { useMemo, useState } from "react";
 import { useStore } from "@/hooks/use-store";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   Select,
   SelectTrigger,
@@ -13,62 +14,60 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Badge } from "@/components/ui/badge";
 import {
   Activity,
   CalendarCheck,
   ChevronLeft,
   ChevronRight,
   CheckCircle2,
-  FileText,
-  Trash2,
-  Sparkles,
-  Upload,
   HeartHandshake,
   UserCheck,
+  ShieldCheck,
 } from "lucide-react";
 import { format, addDays, startOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
 import {
-  type ActivityLevel,
-  type Anamnesis,
-  type Goal,
-  ACTIVITY_LABEL,
-  GOAL_LABEL,
-  MIN_CONTRIBUTION,
+  CONDITION_LABEL,
+  CONTRIBUTION_AMOUNT,
+  CONTRIBUTION_TEXT,
+  DIABETES_TYPE_LABEL,
+  LGPD_TEXT,
+  type PatientHealth,
+  type PatientPersonal,
 } from "@/lib/mock-store";
 
 const STEPS_GENERAL = [
   { id: 1, title: "Profissional" },
-  { id: 2, title: "Agendamento" },
-  { id: 3, title: "Anamnese" },
-  { id: 4, title: "Exames" },
-  { id: 5, title: "Avaliação" },
-  { id: 6, title: "Contribuição" },
-  { id: 7, title: "Confirmação" },
-];
-
-const STEPS_PRO = [
-  { id: 1, title: "Agendamento" },
-  { id: 2, title: "Anamnese" },
-  { id: 3, title: "Exames" },
-  { id: 4, title: "Avaliação" },
-  { id: 5, title: "Contribuição" },
+  { id: 2, title: "Cadastro" },
+  { id: 3, title: "Saúde" },
+  { id: 4, title: "Agendamento" },
+  { id: 5, title: "Termos" },
   { id: 6, title: "Confirmação" },
 ];
 
-const RECOMMENDED_EXAMS = [
-  "Hemograma completo",
-  "Glicemia em jejum",
-  "Colesterol total e frações",
-  "TSH e T4 livre",
-  "Vitamina D",
-  "Vitamina B12",
+const STEPS_PRO = [
+  { id: 1, title: "Cadastro" },
+  { id: 2, title: "Saúde" },
+  { id: 3, title: "Agendamento" },
+  { id: 4, title: "Termos" },
+  { id: 5, title: "Confirmação" },
 ];
 
-type ExamUpload = { name: string; sizeKb: number };
+type Conditions = PatientHealth["conditions"];
+
+const EMPTY_CONDITIONS: Conditions = {
+  insulina: false,
+  aparelhoGlicemia: false,
+  bombaInsulina: false,
+  hipertensao: false,
+  cardiopatia: false,
+  retinopatia: false,
+  neuropatia: false,
+  nefropatia: false,
+  colesterol: false,
+  fumante: false,
+};
 
 export function PortalFlow({
   clinicSlug,
@@ -85,60 +84,49 @@ export function PortalFlow({
   const [step, setStep] = useState(1);
   const [done, setDone] = useState(false);
 
-  // Step 0 (geral): área e profissional
+  // Profissional
   const [areaId, setAreaId] = useState("");
   const [proId, setProId] = useState(fixedProfessionalId ?? "");
 
-  // Step Agendamento
+  // Cadastro APAD — pessoais
+  const [name, setName] = useState("");
+  const [rg, setRg] = useState("");
+  const [cpf, setCpf] = useState("");
+  const [birthDate, setBirthDate] = useState("");
+  const [profession, setProfession] = useState("");
+  const [cep, setCep] = useState("");
+  const [street, setStreet] = useState("");
+  const [num, setNum] = useState("");
+  const [complement, setComplement] = useState("");
+  const [district, setDistrict] = useState("");
+  const [city, setCity] = useState("");
+  const [stateUf, setStateUf] = useState("");
+  // Contato
+  const [landline, setLandline] = useState("");
+  const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
+
+  // Saúde APAD
+  const [howKnew, setHowKnew] = useState("");
+  const [diagnosisYear, setDiagnosisYear] = useState("");
+  const [diabetesType, setDiabetesType] = useState<PatientHealth["diabetesType"]>("tipo1");
+  const [medications, setMedications] = useState("");
+  const [conditions, setConditions] = useState<Conditions>(EMPTY_CONDITIONS);
+
+  // Agendamento
   const [date, setDate] = useState(format(addDays(startOfDay(new Date()), 1), "yyyy-MM-dd"));
   const [time, setTime] = useState("09:00");
   const [modality, setModality] = useState<"presencial" | "online">("presencial");
 
-  // Anamnese
-  const [name, setName] = useState("");
-  const [age, setAge] = useState<number | "">("");
-  const [sex, setSex] = useState<"F" | "M" | "outro">("F");
-  const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
-  const [goal, setGoal] = useState<Goal>("emagrecimento");
-  const [diseases, setDiseases] = useState("");
-  const [allergies, setAllergies] = useState("");
-  const [medications, setMedications] = useState("");
-  const [surgeries, setSurgeries] = useState("");
-  const [eatingHabits, setEatingHabits] = useState("");
-  const [activity, setActivity] = useState<ActivityLevel>("moderado");
+  // Termos
+  const [lgpdConsent, setLgpdConsent] = useState(false);
+  const [contributeConsent, setContributeConsent] = useState(false);
 
-  // Exames
-  const [exams, setExams] = useState<ExamUpload[]>([]);
-
-  // Avaliação
-  const [evaluation, setEvaluation] = useState<"dobras" | "bioimpedancia" | "nenhuma">("nenhuma");
-
-  // Contribuição
-  const [wantsContribute, setWantsContribute] = useState<"sim" | "nao">("nao");
-  const [contribAmount, setContribAmount] = useState<number | "">(MIN_CONTRIBUTION);
-
-  // Mapeia step → tela lógica
   function screen(): string {
-    if (isFixed) return ["agendamento", "anamnese", "exames", "avaliacao", "contribuicao", "confirmacao"][step - 1];
-    return ["profissional", "agendamento", "anamnese", "exames", "avaliacao", "contribuicao", "confirmacao"][step - 1];
-  }
-
-  function handleFiles(files: FileList | null) {
-    if (!files) return;
-    const newOnes: ExamUpload[] = [];
-    for (const f of Array.from(files)) {
-      if (exams.length + newOnes.length >= 8) {
-        toast.error("Máximo de 8 arquivos");
-        break;
-      }
-      if (f.size > 10 * 1024 * 1024) {
-        toast.error(`${f.name} excede 10MB`);
-        continue;
-      }
-      newOnes.push({ name: f.name, sizeKb: Math.round(f.size / 1024) });
-    }
-    setExams((prev) => [...prev, ...newOnes]);
+    const seq = isFixed
+      ? ["cadastro", "saude", "agendamento", "termos", "confirmacao"]
+      : ["profissional", "cadastro", "saude", "agendamento", "termos", "confirmacao"];
+    return seq[step - 1] ?? "confirmacao";
   }
 
   function next() {
@@ -147,67 +135,60 @@ export function PortalFlow({
       toast.error("Selecione um profissional");
       return;
     }
-    if (s === "anamnese" && (!name.trim() || !phone.trim())) {
-      toast.error("Preencha nome e WhatsApp");
-      return;
-    }
-    if (s === "contribuicao" && wantsContribute === "sim") {
-      const v = typeof contribAmount === "number" ? contribAmount : 0;
-      if (v < MIN_CONTRIBUTION) {
-        toast.error(`Valor mínimo R$ ${MIN_CONTRIBUTION}`);
+    if (s === "cadastro") {
+      if (!name.trim() || !phone.trim() || !birthDate) {
+        toast.error("Preencha nome, data de nascimento e celular");
         return;
       }
     }
-    setStep((s) => Math.min(TOTAL, s + 1));
+    if (s === "agendamento") {
+      const iso = new Date(`${date}T${time}:00`).toISOString();
+      if (store.isBlocked(proId, iso, 45)) {
+        toast.error("Horário indisponível — escolha outro");
+        return;
+      }
+    }
+    if (s === "termos" && !lgpdConsent) {
+      toast.error("É necessário aceitar o termo de uso de dados (LGPD)");
+      return;
+    }
+    setStep((v) => Math.min(TOTAL, v + 1));
   }
   function prev() {
-    setStep((s) => Math.max(1, s - 1));
+    setStep((v) => Math.max(1, v - 1));
   }
 
   function confirm() {
     if (!proId) {
-      toast.error("Selecione um profissional");
+      toast.error("Profissional não selecionado");
       return;
     }
-    const willContribute = wantsContribute === "sim";
-    const amount = willContribute && typeof contribAmount === "number" ? contribAmount : undefined;
-
+    const personal: PatientPersonal = {
+      rg, cpf, cep, street, number: num, complement, district, city, state: stateUf,
+      profession, landline,
+    };
+    const health: PatientHealth = {
+      howKnewAssociation: howKnew,
+      diagnosisYear,
+      diabetesType,
+      medications,
+      conditions,
+    };
     const patientId = store.addPatient({
       name,
       phone,
-      birthDate: age
-        ? new Date(new Date().getFullYear() - Number(age), 0, 1).toISOString().slice(0, 10)
-        : new Date().toISOString().slice(0, 10),
-      email,
+      birthDate,
+      email: email || undefined,
+      personal,
+      health,
       professionalId: proId,
-      isContributor: willContribute,
-      contributionAmount: amount,
+      isContributor: contributeConsent,
+      contributionAmount: contributeConsent ? CONTRIBUTION_AMOUNT : undefined,
+      lgptConsent: lgpdConsent,
     });
 
-    const anam: Anamnesis = {
-      filledAt: new Date().toISOString(),
-      age: age === "" ? undefined : Number(age),
-      sex,
-      email,
-      goal,
-      diseases,
-      allergies,
-      medications,
-      surgeries,
-      eatingHabits,
-      activity,
-      evaluation,
-    };
-    store.setPatientAnamnesis(patientId, anam);
-
-    for (const ex of exams) store.addPatientExam(patientId, ex.name, ex.sizeKb);
-
-    if (willContribute && amount) {
-      store.registerContribution(patientId, amount);
-    }
-
     const iso = new Date(`${date}T${time}:00`).toISOString();
-    store.addAppointment({
+    const apptId = store.addAppointment({
       patientId,
       professionalId: proId,
       date: iso,
@@ -215,7 +196,10 @@ export function PortalFlow({
       status: "pendente",
       modality,
     });
-
+    if (!apptId) {
+      toast.error("Horário indisponível — selecione outro horário.");
+      return;
+    }
     setDone(true);
   }
 
@@ -245,7 +229,6 @@ export function PortalFlow({
       </header>
 
       <div className="max-w-3xl mx-auto px-4 md:px-6 py-6 md:py-10">
-        {/* Banner profissional fixo */}
         {fixedPro && (
           <div className="mb-5 flex items-center gap-3 rounded-xl border bg-primary/5 border-primary/20 p-4">
             <div
@@ -300,80 +283,49 @@ export function PortalFlow({
           {s === "profissional" && (
             <ScreenProfessional
               areaId={areaId}
-              setAreaId={(v) => {
-                setAreaId(v);
-                setProId("");
-              }}
+              setAreaId={(v) => { setAreaId(v); setProId(""); }}
               proId={proId}
               setProId={setProId}
             />
           )}
+          {s === "cadastro" && (
+            <ScreenCadastro
+              v={{
+                name, setName, rg, setRg, cpf, setCpf, birthDate, setBirthDate, profession, setProfession,
+                cep, setCep, street, setStreet, num, setNum, complement, setComplement,
+                district, setDistrict, city, setCity, stateUf, setStateUf,
+                landline, setLandline, phone, setPhone, email, setEmail,
+              }}
+            />
+          )}
+          {s === "saude" && (
+            <ScreenSaude
+              howKnew={howKnew} setHowKnew={setHowKnew}
+              diagnosisYear={diagnosisYear} setDiagnosisYear={setDiagnosisYear}
+              diabetesType={diabetesType} setDiabetesType={setDiabetesType}
+              medications={medications} setMedications={setMedications}
+              conditions={conditions} setConditions={setConditions}
+            />
+          )}
           {s === "agendamento" && (
             <ScreenAgendamento
-              date={date}
-              setDate={setDate}
-              time={time}
-              setTime={setTime}
-              modality={modality}
-              setModality={setModality}
+              proId={proId}
+              date={date} setDate={setDate}
+              time={time} setTime={setTime}
+              modality={modality} setModality={setModality}
             />
           )}
-          {s === "anamnese" && (
-            <ScreenAnamnese
-              name={name}
-              setName={setName}
-              age={age}
-              setAge={setAge}
-              sex={sex}
-              setSex={setSex}
-              email={email}
-              setEmail={setEmail}
-              phone={phone}
-              setPhone={setPhone}
-              goal={goal}
-              setGoal={setGoal}
-              diseases={diseases}
-              setDiseases={setDiseases}
-              allergies={allergies}
-              setAllergies={setAllergies}
-              medications={medications}
-              setMedications={setMedications}
-              surgeries={surgeries}
-              setSurgeries={setSurgeries}
-              eatingHabits={eatingHabits}
-              setEatingHabits={setEatingHabits}
-              activity={activity}
-              setActivity={setActivity}
-            />
-          )}
-          {s === "exames" && (
-            <ScreenExames exams={exams} setExams={setExams} onFiles={handleFiles} />
-          )}
-          {s === "avaliacao" && (
-            <ScreenAvaliacao evaluation={evaluation} setEvaluation={setEvaluation} />
-          )}
-          {s === "contribuicao" && (
-            <ScreenContribuicao
-              wants={wantsContribute}
-              setWants={setWantsContribute}
-              amount={contribAmount}
-              setAmount={setContribAmount}
+          {s === "termos" && (
+            <ScreenTermos
+              lgpdConsent={lgpdConsent} setLgpdConsent={setLgpdConsent}
+              contributeConsent={contributeConsent} setContributeConsent={setContributeConsent}
             />
           )}
           {s === "confirmacao" && (
             <ScreenConfirmacao
               proId={proId}
-              date={date}
-              time={time}
-              modality={modality}
-              name={name}
-              age={age}
-              goal={goal}
-              activity={activity}
-              evaluation={evaluation}
-              examsCount={exams.length}
-              wantsContribute={wantsContribute === "sim"}
-              contribAmount={typeof contribAmount === "number" ? contribAmount : 0}
+              date={date} time={time} modality={modality}
+              name={name} contributeConsent={contributeConsent}
             />
           )}
         </Card>
@@ -400,28 +352,16 @@ export function PortalFlow({
 /* ---------- Telas ---------- */
 
 function ScreenProfessional({
-  areaId,
-  setAreaId,
-  proId,
-  setProId,
+  areaId, setAreaId, proId, setProId,
 }: {
-  areaId: string;
-  setAreaId: (v: string) => void;
-  proId: string;
-  setProId: (v: string) => void;
+  areaId: string; setAreaId: (v: string) => void; proId: string; setProId: (v: string) => void;
 }) {
   const store = useStore();
-
-  // Áreas dinâmicas: somente as que possuem ao menos 1 profissional cadastrado
-  // nesta clínica. Atualiza automaticamente ao adicionar/editar profissionais.
-  const areasComProfissional = store.areas
-    .map((a) => ({
-      area: a,
-      profs: store.professionals.filter((p) => p.areaId === a.id),
-    }))
+  const grouped = store.areas
+    .map((a) => ({ area: a, profs: store.professionals.filter((p) => p.areaId === a.id) }))
     .filter((g) => g.profs.length > 0);
 
-  if (areasComProfissional.length === 0) {
+  if (grouped.length === 0) {
     return (
       <div className="space-y-3 text-center py-8">
         <h2 className="text-xl font-semibold">Sem áreas disponíveis</h2>
@@ -437,498 +377,337 @@ function ScreenProfessional({
       <div>
         <h2 className="text-xl font-semibold">Escolha a área de atendimento</h2>
         <p className="text-sm text-muted-foreground">
-          Áreas disponíveis em {store.clinic.name}. Selecione um profissional para continuar.
+          Áreas disponíveis em {store.clinic.name}.
         </p>
       </div>
 
-      {/* Filtro rápido por área */}
       <div className="flex flex-wrap gap-2">
         <button
           type="button"
           onClick={() => setAreaId("")}
           className={
             "px-3 py-1.5 rounded-full border text-xs font-medium transition-smooth " +
-            (areaId === ""
-              ? "border-primary bg-primary/10 text-primary"
-              : "hover:bg-muted/40")
+            (areaId === "" ? "border-primary bg-primary/10 text-primary" : "hover:bg-muted/40")
           }
         >
-          Todas ({areasComProfissional.length})
+          Todas ({grouped.length})
         </button>
-        {areasComProfissional.map(({ area, profs }) => (
+        {grouped.map(({ area, profs }) => (
           <button
             key={area.id}
             type="button"
             onClick={() => setAreaId(area.id)}
             className={
               "px-3 py-1.5 rounded-full border text-xs font-medium transition-smooth flex items-center gap-1.5 " +
-              (areaId === area.id
-                ? "border-primary bg-primary/10 text-primary"
-                : "hover:bg-muted/40")
+              (areaId === area.id ? "border-primary bg-primary/10 text-primary" : "hover:bg-muted/40")
             }
           >
-            <span
-              className="inline-block h-2 w-2 rounded-full"
-              style={{ background: area.color }}
-            />
+            <span className="inline-block h-2 w-2 rounded-full" style={{ background: area.color }} />
             {area.name} ({profs.length})
           </button>
         ))}
       </div>
 
-      {/* Profissionais agrupados por área */}
       <div className="space-y-5">
-        {areasComProfissional
-          .filter(({ area }) => !areaId || area.id === areaId)
-          .map(({ area, profs }) => (
-            <div key={area.id} className="space-y-2">
-              <div className="flex items-center gap-2">
-                <span
-                  className="inline-block h-2.5 w-2.5 rounded-full"
-                  style={{ background: area.color }}
-                />
-                <h3 className="text-sm font-semibold">{area.name}</h3>
-                <span className="text-xs text-muted-foreground">
-                  · {profs.length} profissional{profs.length > 1 ? "is" : ""}
-                </span>
-              </div>
-              <div className="grid grid-cols-1 gap-2">
-                {profs.map((p) => (
-                  <button
-                    key={p.id}
-                    type="button"
-                    onClick={() => {
-                      setAreaId(area.id);
-                      setProId(p.id);
-                    }}
-                    className={
-                      "flex items-center gap-3 rounded-lg border p-3 text-left transition-smooth hover:bg-muted/40 " +
-                      (proId === p.id
-                        ? "border-primary bg-primary/5 ring-1 ring-primary/30"
-                        : "")
-                    }
-                  >
-                    <div
-                      className="h-9 w-9 rounded-full flex items-center justify-center text-white text-xs font-medium shrink-0"
-                      style={{ background: p.color }}
-                    >
-                      {p.name
-                        .split(" ")
-                        .slice(-2)
-                        .map((n) => n[0])
-                        .join("")
-                        .toUpperCase()}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="font-medium text-sm truncate">{p.name}</div>
-                      <div className="text-xs text-muted-foreground truncate">
-                        {p.specialty}
-                      </div>
-                    </div>
-                  </button>
-                ))}
-              </div>
+        {grouped.filter(({ area }) => !areaId || area.id === areaId).map(({ area, profs }) => (
+          <div key={area.id} className="space-y-2">
+            <div className="flex items-center gap-2">
+              <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: area.color }} />
+              <h3 className="text-sm font-semibold">{area.name}</h3>
             </div>
-          ))}
+            <div className="grid grid-cols-1 gap-2">
+              {profs.map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => { setAreaId(area.id); setProId(p.id); }}
+                  className={
+                    "flex items-center gap-3 rounded-lg border p-3 text-left transition-smooth hover:bg-muted/40 " +
+                    (proId === p.id ? "border-primary bg-primary/5 ring-1 ring-primary/30" : "")
+                  }
+                >
+                  <div
+                    className="h-9 w-9 rounded-full flex items-center justify-center text-white text-xs font-medium shrink-0"
+                    style={{ background: p.color }}
+                  >
+                    {p.name.split(" ").slice(-2).map((n) => n[0]).join("").toUpperCase()}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium text-sm truncate">{p.name}</div>
+                    <div className="text-xs text-muted-foreground truncate">{p.specialty}</div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        ))}
       </div>
+    </div>
+  );
+}
+
+type CadastroVals = {
+  name: string; setName: (v: string) => void;
+  rg: string; setRg: (v: string) => void;
+  cpf: string; setCpf: (v: string) => void;
+  birthDate: string; setBirthDate: (v: string) => void;
+  profession: string; setProfession: (v: string) => void;
+  cep: string; setCep: (v: string) => void;
+  street: string; setStreet: (v: string) => void;
+  num: string; setNum: (v: string) => void;
+  complement: string; setComplement: (v: string) => void;
+  district: string; setDistrict: (v: string) => void;
+  city: string; setCity: (v: string) => void;
+  stateUf: string; setStateUf: (v: string) => void;
+  landline: string; setLandline: (v: string) => void;
+  phone: string; setPhone: (v: string) => void;
+  email: string; setEmail: (v: string) => void;
+};
+
+function ScreenCadastro({ v }: { v: CadastroVals }) {
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-xl font-semibold">Dados pessoais</h2>
+        <p className="text-sm text-muted-foreground">
+          Esses dados ficam no seu cadastro e prontuário (formulário oficial APAD).
+        </p>
+      </div>
+
+      <Section title="Identificação">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <Field label="Nome completo *" className="sm:col-span-2">
+            <Input value={v.name} onChange={(e) => v.setName(e.target.value)} />
+          </Field>
+          <Field label="RG"><Input value={v.rg} onChange={(e) => v.setRg(e.target.value)} /></Field>
+          <Field label="CPF"><Input value={v.cpf} onChange={(e) => v.setCpf(e.target.value)} /></Field>
+          <Field label="Data de nascimento *">
+            <Input type="date" value={v.birthDate} onChange={(e) => v.setBirthDate(e.target.value)} />
+          </Field>
+          <Field label="Profissão"><Input value={v.profession} onChange={(e) => v.setProfession(e.target.value)} /></Field>
+        </div>
+      </Section>
+
+      <Section title="Endereço">
+        <div className="grid grid-cols-1 sm:grid-cols-6 gap-3">
+          <Field label="CEP" className="sm:col-span-2"><Input value={v.cep} onChange={(e) => v.setCep(e.target.value)} /></Field>
+          <Field label="Rua" className="sm:col-span-3"><Input value={v.street} onChange={(e) => v.setStreet(e.target.value)} /></Field>
+          <Field label="Número" className="sm:col-span-1"><Input value={v.num} onChange={(e) => v.setNum(e.target.value)} /></Field>
+          <Field label="Complemento" className="sm:col-span-3"><Input value={v.complement} onChange={(e) => v.setComplement(e.target.value)} /></Field>
+          <Field label="Bairro" className="sm:col-span-3"><Input value={v.district} onChange={(e) => v.setDistrict(e.target.value)} /></Field>
+          <Field label="Cidade" className="sm:col-span-4"><Input value={v.city} onChange={(e) => v.setCity(e.target.value)} /></Field>
+          <Field label="UF" className="sm:col-span-2"><Input maxLength={2} value={v.stateUf} onChange={(e) => v.setStateUf(e.target.value.toUpperCase())} /></Field>
+        </div>
+      </Section>
+
+      <Section title="Contato">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <Field label="Telefone fixo"><Input value={v.landline} onChange={(e) => v.setLandline(e.target.value)} /></Field>
+          <Field label="Celular *"><Input value={v.phone} onChange={(e) => v.setPhone(e.target.value)} /></Field>
+          <Field label="E-mail"><Input type="email" value={v.email} onChange={(e) => v.setEmail(e.target.value)} /></Field>
+        </div>
+      </Section>
+    </div>
+  );
+}
+
+function ScreenSaude({
+  howKnew, setHowKnew, diagnosisYear, setDiagnosisYear, diabetesType, setDiabetesType,
+  medications, setMedications, conditions, setConditions,
+}: {
+  howKnew: string; setHowKnew: (v: string) => void;
+  diagnosisYear: string; setDiagnosisYear: (v: string) => void;
+  diabetesType: PatientHealth["diabetesType"]; setDiabetesType: (v: PatientHealth["diabetesType"]) => void;
+  medications: string; setMedications: (v: string) => void;
+  conditions: Conditions; setConditions: (v: Conditions) => void;
+}) {
+  function toggle(k: keyof Conditions, val: boolean) {
+    setConditions({ ...conditions, [k]: val });
+  }
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-xl font-semibold">Dados de saúde</h2>
+        <p className="text-sm text-muted-foreground">Estas informações alimentam seu prontuário clínico.</p>
+      </div>
+
+      <Section title="Sobre o diabetes">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <Field label="Como conheceu a associação?" className="sm:col-span-2">
+            <Input value={howKnew} onChange={(e) => setHowKnew(e.target.value)} />
+          </Field>
+          <Field label="Ano do diagnóstico">
+            <Input value={diagnosisYear} onChange={(e) => setDiagnosisYear(e.target.value)} placeholder="Ex: 2018" />
+          </Field>
+          <Field label="Tipo de diabetes">
+            <Select value={diabetesType} onValueChange={(val) => setDiabetesType(val as PatientHealth["diabetesType"])}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {Object.entries(DIABETES_TYPE_LABEL).map(([k, label]) => (
+                  <SelectItem key={k} value={k}>{label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
+          <Field label="Medicamentos em uso" className="sm:col-span-2">
+            <Textarea value={medications} onChange={(e) => setMedications(e.target.value)} rows={2} />
+          </Field>
+        </div>
+      </Section>
+
+      <Section title="Condições (marque o que se aplica)">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          {(Object.keys(CONDITION_LABEL) as Array<keyof Conditions>).map((k) => (
+            <label key={k} className="flex items-center gap-2 rounded-lg border p-3 cursor-pointer hover:bg-muted/40">
+              <Checkbox checked={conditions[k]} onCheckedChange={(v) => toggle(k, !!v)} />
+              <span className="text-sm">{CONDITION_LABEL[k]}</span>
+            </label>
+          ))}
+        </div>
+      </Section>
     </div>
   );
 }
 
 function ScreenAgendamento({
-  date,
-  setDate,
-  time,
-  setTime,
-  modality,
-  setModality,
+  proId, date, setDate, time, setTime, modality, setModality,
 }: {
-  date: string;
-  setDate: (v: string) => void;
-  time: string;
-  setTime: (v: string) => void;
-  modality: "presencial" | "online";
-  setModality: (v: "presencial" | "online") => void;
+  proId: string;
+  date: string; setDate: (v: string) => void;
+  time: string; setTime: (v: string) => void;
+  modality: "presencial" | "online"; setModality: (v: "presencial" | "online") => void;
 }) {
+  const store = useStore();
+
+  // Lista de horários sugeridos no dia (slots a cada 30min entre 8h e 18h)
+  const slots = useMemo(() => {
+    const out: string[] = [];
+    for (let h = 8; h < 18; h++) {
+      out.push(`${String(h).padStart(2, "0")}:00`);
+      out.push(`${String(h).padStart(2, "0")}:30`);
+    }
+    return out;
+  }, []);
+
+  function isSlotBlocked(t: string): boolean {
+    if (!proId) return false;
+    return store.isBlocked(proId, new Date(`${date}T${t}:00`).toISOString(), 45);
+  }
+
   return (
     <div className="space-y-5">
       <div>
         <h2 className="text-xl font-semibold">Agende sua consulta</h2>
-        <p className="text-sm text-muted-foreground">Escolha dia, horário e modalidade.</p>
+        <p className="text-sm text-muted-foreground">
+          Escolha dia, horário e modalidade. Horários indisponíveis estão acinzentados.
+        </p>
       </div>
 
       <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-1.5">
-          <Label>Data</Label>
+        <Field label="Data">
           <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
-        </div>
-        <div className="space-y-1.5">
-          <Label>Horário</Label>
-          <Input type="time" value={time} onChange={(e) => setTime(e.target.value)} />
-        </div>
-      </div>
-
-      <div className="space-y-1.5">
-        <Label>Modalidade</Label>
-        <RadioGroup
-          value={modality}
-          onValueChange={(v) => setModality(v as "presencial" | "online")}
-          className="grid grid-cols-2 gap-2"
-        >
-          <label className="flex items-center gap-2 rounded-lg border p-3 cursor-pointer hover:bg-muted/50">
-            <RadioGroupItem value="presencial" /> Presencial
-          </label>
-          <label className="flex items-center gap-2 rounded-lg border p-3 cursor-pointer hover:bg-muted/50">
-            <RadioGroupItem value="online" /> Online
-          </label>
-        </RadioGroup>
-      </div>
-    </div>
-  );
-}
-
-type AnamneseProps = {
-  name: string;
-  setName: (v: string) => void;
-  age: number | "";
-  setAge: (v: number | "") => void;
-  sex: "F" | "M" | "outro";
-  setSex: (v: "F" | "M" | "outro") => void;
-  email: string;
-  setEmail: (v: string) => void;
-  phone: string;
-  setPhone: (v: string) => void;
-  goal: Goal;
-  setGoal: (v: Goal) => void;
-  diseases: string;
-  setDiseases: (v: string) => void;
-  allergies: string;
-  setAllergies: (v: string) => void;
-  medications: string;
-  setMedications: (v: string) => void;
-  surgeries: string;
-  setSurgeries: (v: string) => void;
-  eatingHabits: string;
-  setEatingHabits: (v: string) => void;
-  activity: ActivityLevel;
-  setActivity: (v: ActivityLevel) => void;
-};
-
-function ScreenAnamnese(p: AnamneseProps) {
-  return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-xl font-semibold">Conte sobre você</h2>
-        <p className="text-sm text-muted-foreground">
-          Essas informações vão direto para o seu prontuário.
-        </p>
-      </div>
-
-      <Section title="Dados pessoais">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div className="space-y-1.5 sm:col-span-2">
-            <Label>Nome completo *</Label>
-            <Input value={p.name} onChange={(e) => p.setName(e.target.value)} />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Idade</Label>
-            <Input
-              type="number"
-              value={p.age}
-              onChange={(e) => p.setAge(e.target.value === "" ? "" : Number(e.target.value))}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Sexo</Label>
-            <Select value={p.sex} onValueChange={(v) => p.setSex(v as "F" | "M" | "outro")}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="F">Feminino</SelectItem>
-                <SelectItem value="M">Masculino</SelectItem>
-                <SelectItem value="outro">Outro</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1.5">
-            <Label>E-mail</Label>
-            <Input type="email" value={p.email} onChange={(e) => p.setEmail(e.target.value)} />
-          </div>
-          <div className="space-y-1.5">
-            <Label>WhatsApp *</Label>
-            <Input value={p.phone} onChange={(e) => p.setPhone(e.target.value)} />
-          </div>
-        </div>
-      </Section>
-
-      <Section title="Objetivo">
-        <RadioGroup
-          value={p.goal}
-          onValueChange={(v) => p.setGoal(v as Goal)}
-          className="grid grid-cols-1 sm:grid-cols-2 gap-2"
-        >
-          {(Object.keys(GOAL_LABEL) as Goal[]).map((g) => (
-            <label
-              key={g}
-              className="flex items-center gap-2 rounded-lg border p-3 cursor-pointer hover:bg-muted/50"
-            >
-              <RadioGroupItem value={g} />
-              <span className="text-sm">{GOAL_LABEL[g]}</span>
+        </Field>
+        <Field label="Modalidade">
+          <RadioGroup
+            value={modality}
+            onValueChange={(v) => setModality(v as "presencial" | "online")}
+            className="grid grid-cols-2 gap-2"
+          >
+            <label className="flex items-center gap-2 rounded-lg border p-3 cursor-pointer hover:bg-muted/50 text-sm">
+              <RadioGroupItem value="presencial" /> Presencial
             </label>
-          ))}
-        </RadioGroup>
-      </Section>
-
-      <Section title="Histórico de saúde">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div className="space-y-1.5">
-            <Label>Doenças</Label>
-            <Input value={p.diseases} onChange={(e) => p.setDiseases(e.target.value)} />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Alergias</Label>
-            <Input value={p.allergies} onChange={(e) => p.setAllergies(e.target.value)} />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Medicamentos</Label>
-            <Input value={p.medications} onChange={(e) => p.setMedications(e.target.value)} />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Cirurgias</Label>
-            <Input value={p.surgeries} onChange={(e) => p.setSurgeries(e.target.value)} />
-          </div>
-        </div>
-      </Section>
-
-      <Section title="Hábitos alimentares">
-        <Textarea
-          value={p.eatingHabits}
-          onChange={(e) => p.setEatingHabits(e.target.value)}
-          rows={3}
-          placeholder="Conte como é sua rotina alimentar (refeições, beliscos, frequência…)"
-        />
-      </Section>
-
-      <Section title="Nível de atividade física">
-        <RadioGroup
-          value={p.activity}
-          onValueChange={(v) => p.setActivity(v as ActivityLevel)}
-          className="grid grid-cols-2 sm:grid-cols-5 gap-2"
-        >
-          {(Object.keys(ACTIVITY_LABEL) as ActivityLevel[]).map((a) => (
-            <label
-              key={a}
-              className="flex items-center gap-2 rounded-lg border p-2 cursor-pointer hover:bg-muted/50 text-xs"
-            >
-              <RadioGroupItem value={a} />
-              {ACTIVITY_LABEL[a]}
+            <label className="flex items-center gap-2 rounded-lg border p-3 cursor-pointer hover:bg-muted/50 text-sm">
+              <RadioGroupItem value="online" /> Online
             </label>
-          ))}
-        </RadioGroup>
-      </Section>
-    </div>
-  );
-}
-
-function ScreenExames({
-  exams,
-  setExams,
-  onFiles,
-}: {
-  exams: ExamUpload[];
-  setExams: (v: ExamUpload[]) => void;
-  onFiles: (f: FileList | null) => void;
-}) {
-  return (
-    <div className="space-y-5">
-      <div>
-        <h2 className="text-xl font-semibold">Anexe seus exames</h2>
-        <p className="text-sm text-muted-foreground">
-          Até 8 arquivos PDF, 10MB cada. Opcional, mas ajuda na consulta.
-        </p>
+          </RadioGroup>
+        </Field>
       </div>
 
-      <label className="flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed p-8 cursor-pointer hover:bg-muted/40 transition-smooth">
-        <Upload className="h-6 w-6 text-muted-foreground" />
-        <div className="text-sm font-medium">Clique para selecionar PDFs</div>
-        <div className="text-xs text-muted-foreground">{exams.length}/8 anexados</div>
-        <input
-          type="file"
-          accept="application/pdf"
-          multiple
-          className="hidden"
-          onChange={(e) => onFiles(e.target.files)}
-        />
-      </label>
-
-      {exams.length > 0 && (
-        <div className="space-y-2">
-          {exams.map((ex, i) => (
-            <div
-              key={`${ex.name}-${i}`}
-              className="flex items-center gap-3 p-3 rounded-lg border bg-card"
-            >
-              <FileText className="h-4 w-4 text-primary shrink-0" />
-              <div className="flex-1 min-w-0">
-                <div className="text-sm font-medium truncate">{ex.name}</div>
-                <div className="text-xs text-muted-foreground">
-                  {(ex.sizeKb / 1024).toFixed(2)} MB
-                </div>
-              </div>
+      <div>
+        <Label className="text-xs uppercase tracking-wider text-muted-foreground">Horário</Label>
+        <div className="mt-2 grid grid-cols-4 sm:grid-cols-6 gap-2">
+          {slots.map((s) => {
+            const blocked = isSlotBlocked(s);
+            const active = time === s;
+            return (
               <button
-                onClick={() => setExams(exams.filter((_, j) => j !== i))}
-                className="text-muted-foreground hover:text-destructive"
+                key={s}
+                type="button"
+                disabled={blocked}
+                onClick={() => setTime(s)}
+                className={
+                  "rounded-lg border px-2 py-2 text-sm transition-smooth tabular-nums " +
+                  (blocked
+                    ? "bg-muted/40 text-muted-foreground line-through cursor-not-allowed"
+                    : active
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "hover:bg-muted/40")
+                }
               >
-                <Trash2 className="h-4 w-4" />
+                {s}
               </button>
-            </div>
-          ))}
-        </div>
-      )}
-
-      <div className="rounded-lg border bg-muted/30 p-4">
-        <div className="flex items-center gap-2 text-sm font-medium mb-2">
-          <Sparkles className="h-4 w-4 text-primary" /> Exames recomendados
-        </div>
-        <div className="flex flex-wrap gap-1.5">
-          {RECOMMENDED_EXAMS.map((e) => (
-            <Badge key={e} variant="outline" className="text-xs">
-              {e}
-            </Badge>
-          ))}
+            );
+          })}
         </div>
       </div>
     </div>
   );
 }
 
-function ScreenAvaliacao({
-  evaluation,
-  setEvaluation,
+function ScreenTermos({
+  lgpdConsent, setLgpdConsent, contributeConsent, setContributeConsent,
 }: {
-  evaluation: "dobras" | "bioimpedancia" | "nenhuma";
-  setEvaluation: (v: "dobras" | "bioimpedancia" | "nenhuma") => void;
-}) {
-  return (
-    <div className="space-y-5">
-      <div>
-        <h2 className="text-xl font-semibold">Avaliação física</h2>
-        <p className="text-sm text-muted-foreground">
-          Escolha o método de avaliação corporal que prefere.
-        </p>
-      </div>
-
-      <RadioGroup
-        value={evaluation}
-        onValueChange={(v) => setEvaluation(v as "dobras" | "bioimpedancia" | "nenhuma")}
-        className="space-y-2"
-      >
-        <Choice value="dobras" title="Dobras cutâneas" desc="Medição manual com adipômetro." />
-        <Choice
-          value="bioimpedancia"
-          title="Bioimpedância"
-          desc="Análise da composição corporal por aparelho."
-        />
-        <Choice value="nenhuma" title="Sem avaliação" desc="Apenas a consulta clínica." />
-      </RadioGroup>
-    </div>
-  );
-}
-
-function ScreenContribuicao({
-  wants,
-  setWants,
-  amount,
-  setAmount,
-}: {
-  wants: "sim" | "nao";
-  setWants: (v: "sim" | "nao") => void;
-  amount: number | "";
-  setAmount: (v: number | "") => void;
+  lgpdConsent: boolean; setLgpdConsent: (v: boolean) => void;
+  contributeConsent: boolean; setContributeConsent: (v: boolean) => void;
 }) {
   return (
     <div className="space-y-5">
       <div>
         <h2 className="text-xl font-semibold flex items-center gap-2">
-          <HeartHandshake className="h-5 w-5 text-primary" /> Contribuição voluntária
+          <ShieldCheck className="h-5 w-5 text-primary" /> Termos e consentimento
         </h2>
         <p className="text-sm text-muted-foreground">
-          A contribuição é opcional e ajuda na manutenção dos atendimentos gratuitos.
+          Leia atentamente antes de finalizar.
         </p>
       </div>
 
-      <RadioGroup
-        value={wants}
-        onValueChange={(v) => setWants(v as "sim" | "nao")}
-        className="grid grid-cols-2 gap-2"
-      >
-        <Choice value="sim" title="Sim, quero contribuir" desc={`A partir de R$ ${MIN_CONTRIBUTION}.`} />
-        <Choice value="nao" title="Agora não" desc="Você continua associado normalmente." />
-      </RadioGroup>
-
-      {wants === "sim" && (
-        <div className="space-y-2 rounded-lg border bg-primary/5 border-primary/20 p-4">
-          <Label>Valor mensal (mínimo R$ {MIN_CONTRIBUTION})</Label>
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-muted-foreground">R$</span>
-            <Input
-              type="number"
-              min={MIN_CONTRIBUTION}
-              value={amount}
-              onChange={(e) => setAmount(e.target.value === "" ? "" : Number(e.target.value))}
-              className="max-w-[160px]"
-            />
-          </div>
-          <div className="flex flex-wrap gap-1.5 pt-1">
-            {[50, 75, 100, 150, 200].map((v) => (
-              <button
-                key={v}
-                type="button"
-                onClick={() => setAmount(v)}
-                className={
-                  "px-3 py-1 rounded-full text-xs border transition-smooth " +
-                  (amount === v
-                    ? "border-primary bg-primary text-primary-foreground"
-                    : "hover:bg-muted/50")
-                }
-              >
-                R$ {v}
-              </button>
-            ))}
-          </div>
+      <label className="flex items-start gap-3 rounded-lg border p-4 cursor-pointer hover:bg-muted/30">
+        <Checkbox checked={lgpdConsent} onCheckedChange={(v) => setLgpdConsent(!!v)} />
+        <div className="text-sm leading-relaxed">
+          <strong>LGPD *</strong>
+          <div className="text-muted-foreground mt-1">{LGPD_TEXT}</div>
         </div>
-      )}
+      </label>
+
+      <label className="flex items-start gap-3 rounded-lg border bg-primary/5 border-primary/20 p-4 cursor-pointer hover:bg-primary/10">
+        <Checkbox checked={contributeConsent} onCheckedChange={(v) => setContributeConsent(!!v)} />
+        <div className="text-sm leading-relaxed">
+          <div className="flex items-center gap-2 font-medium">
+            <HeartHandshake className="h-4 w-4 text-primary" /> Contribuição voluntária
+          </div>
+          <div className="text-muted-foreground mt-1">{CONTRIBUTION_TEXT}</div>
+        </div>
+      </label>
     </div>
   );
 }
 
-function ScreenConfirmacao(props: {
-  proId: string;
-  date: string;
-  time: string;
-  modality: "presencial" | "online";
-  name: string;
-  age: number | "";
-  goal: Goal;
-  activity: ActivityLevel;
-  evaluation: "dobras" | "bioimpedancia" | "nenhuma";
-  examsCount: number;
-  wantsContribute: boolean;
-  contribAmount: number;
+function ScreenConfirmacao({
+  proId, date, time, modality, name, contributeConsent,
+}: {
+  proId: string; date: string; time: string;
+  modality: "presencial" | "online"; name: string; contributeConsent: boolean;
 }) {
   const store = useStore();
-  const pro = store.professionals.find((p) => p.id === props.proId);
+  const pro = store.professionals.find((p) => p.id === proId);
   const area = store.areas.find((a) => a.id === pro?.areaId);
-  const dateObj = new Date(`${props.date}T${props.time}:00`);
+  const dateObj = new Date(`${date}T${time}:00`);
 
   return (
     <div className="space-y-5">
       <div>
         <h2 className="text-xl font-semibold">Confira e confirme</h2>
-        <p className="text-sm text-muted-foreground">
-          Revise os dados antes de enviar à clínica.
-        </p>
+        <p className="text-sm text-muted-foreground">Revise os dados antes de enviar à clínica.</p>
       </div>
 
       <div className="rounded-lg border bg-primary/5 border-primary/20 p-4 space-y-3">
@@ -937,7 +716,7 @@ function ScreenConfirmacao(props: {
         </div>
         <div className="text-sm">
           {format(dateObj, "EEEE, dd 'de' MMMM 'às' HH:mm", { locale: ptBR })}
-          <span className="text-muted-foreground"> · {props.modality}</span>
+          <span className="text-muted-foreground"> · {modality}</span>
         </div>
         {pro && (
           <div className="flex items-center gap-3 pt-2 border-t border-primary/15">
@@ -948,13 +727,10 @@ function ScreenConfirmacao(props: {
               {pro.name.split(" ").slice(-2).map((n) => n[0]).join("").toUpperCase()}
             </div>
             <div className="min-w-0">
-              <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                Profissional
-              </div>
+              <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Profissional</div>
               <div className="text-sm font-semibold truncate">{pro.name}</div>
               <div className="text-xs text-muted-foreground truncate">
-                {pro.specialty}
-                {area ? ` · ${area.name}` : ""}
+                {pro.specialty}{area ? ` · ${area.name}` : ""}
               </div>
             </div>
           </div>
@@ -962,28 +738,10 @@ function ScreenConfirmacao(props: {
       </div>
 
       <div className="grid grid-cols-2 gap-3 text-sm">
-        <Item label="Paciente" value={props.name || "—"} />
-        <Item label="Idade" value={props.age || "—"} />
-        <Item label="Objetivo" value={GOAL_LABEL[props.goal]} />
-        <Item label="Atividade" value={ACTIVITY_LABEL[props.activity]} />
-        <Item
-          label="Avaliação"
-          value={
-            props.evaluation === "dobras"
-              ? "Dobras cutâneas"
-              : props.evaluation === "bioimpedancia"
-                ? "Bioimpedância"
-                : "Nenhuma"
-          }
-        />
-        <Item label="Exames" value={`${props.examsCount} arquivo(s)`} />
-        <Item
-          label="Contribuição"
-          value={
-            props.wantsContribute ? `R$ ${props.contribAmount}/mês` : "Não contribuinte"
-          }
-        />
+        <Item label="Paciente" value={name || "—"} />
+        <Item label="Modalidade" value={modality} />
         <Item label="Associado" value="Sim (automático)" />
+        <Item label="Contribuição" value={contributeConsent ? `R$ ${CONTRIBUTION_AMOUNT},00/mês` : "Não optou"} />
       </div>
 
       <div className="text-xs text-muted-foreground p-3 rounded-lg bg-muted/40 border">
@@ -994,12 +752,58 @@ function ScreenConfirmacao(props: {
   );
 }
 
+function Success({
+  clinicSlug, fixedProfessionalId,
+}: {
+  clinicSlug: string; fixedProfessionalId?: string;
+}) {
+  const store = useStore();
+  const pro = fixedProfessionalId ? store.professionals.find((p) => p.id === fixedProfessionalId) : undefined;
+  const area = pro ? store.areas.find((a) => a.id === pro.areaId) : undefined;
+
+  return (
+    <div className="min-h-screen bg-background flex items-center justify-center p-6">
+      <Card className="max-w-md w-full p-8 text-center shadow-soft">
+        <div className="mx-auto h-14 w-14 rounded-full gradient-primary flex items-center justify-center shadow-glow mb-4">
+          <CheckCircle2 className="h-7 w-7 text-primary-foreground" />
+        </div>
+        <h1 className="text-xl font-semibold">Tudo certo!</h1>
+        <p className="text-sm text-muted-foreground mt-1">
+          Recebemos seu agendamento. Em instantes você receberá uma confirmação por WhatsApp.
+        </p>
+        {pro && (
+          <div className="mt-5 rounded-lg border bg-muted/30 p-4 text-left">
+            <div className="text-xs uppercase tracking-wider text-muted-foreground mb-1">Profissional</div>
+            <div className="text-sm font-semibold">{pro.name}</div>
+            <div className="text-xs text-muted-foreground">{pro.specialty}{area ? ` · ${area.name}` : ""}</div>
+          </div>
+        )}
+        <a
+          href={fixedProfessionalId ? `/portal/${clinicSlug}/${pro?.slug ?? ""}` : `/portal/${clinicSlug}`}
+          className="text-xs text-primary hover:underline mt-6 inline-block"
+        >
+          Fazer outro agendamento
+        </a>
+      </Card>
+    </div>
+  );
+}
+
+/* ---------- Helpers ---------- */
+
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div>
-      <div className="text-xs uppercase tracking-wider text-muted-foreground mb-2 font-medium">
-        {title}
-      </div>
+      <div className="text-xs uppercase tracking-wider text-muted-foreground mb-2 font-medium">{title}</div>
+      {children}
+    </div>
+  );
+}
+
+function Field({ label, children, className }: { label: string; children: React.ReactNode; className?: string }) {
+  return (
+    <div className={"space-y-1.5 " + (className ?? "")}>
+      <Label className="text-xs">{label}</Label>
       {children}
     </div>
   );
@@ -1007,88 +811,9 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 function Item({ label, value }: { label: string; value: React.ReactNode }) {
   return (
-    <div className="rounded-lg border p-3 bg-card">
+    <div className="rounded-lg border bg-card p-3">
       <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</div>
-      <div className="font-medium">{value}</div>
-    </div>
-  );
-}
-
-function Choice({ value, title, desc }: { value: string; title: string; desc: string }) {
-  return (
-    <label className="flex items-start gap-3 rounded-lg border p-4 cursor-pointer hover:bg-muted/40 transition-smooth has-[:checked]:border-primary has-[:checked]:bg-primary/5">
-      <RadioGroupItem value={value} className="mt-0.5" />
-      <div>
-        <div className="font-medium text-sm">{title}</div>
-        <div className="text-xs text-muted-foreground">{desc}</div>
-      </div>
-    </label>
-  );
-}
-
-function Success({
-  clinicSlug,
-  fixedProfessionalId,
-}: {
-  clinicSlug: string;
-  fixedProfessionalId?: string;
-}) {
-  const store = useStore();
-  const pro = fixedProfessionalId
-    ? store.professionals.find((p) => p.id === fixedProfessionalId)
-    : undefined;
-  const area = pro ? store.areas.find((a) => a.id === pro.areaId) : undefined;
-  return (
-    <div className="min-h-screen bg-background flex items-center justify-center px-4">
-      <Card className="max-w-md w-full p-8 text-center shadow-elegant">
-        <div className="mx-auto h-14 w-14 rounded-full bg-success/15 flex items-center justify-center mb-4">
-          <CheckCircle2 className="h-7 w-7 text-success" />
-        </div>
-        <h1 className="text-2xl font-semibold mb-2">Agendamento confirmado!</h1>
-        <p className="text-sm text-muted-foreground mb-5">
-          Você receberá uma confirmação via WhatsApp em instantes. Sua anamnese e exames
-          já estão no seu prontuário.
-        </p>
-        {pro && (
-          <div className="mb-6 flex items-center gap-3 rounded-xl border bg-primary/5 border-primary/20 p-4 text-left">
-            <div
-              className="h-10 w-10 rounded-full flex items-center justify-center text-white text-xs font-medium shrink-0"
-              style={{ background: pro.color }}
-            >
-              {pro.name.split(" ").slice(-2).map((n) => n[0]).join("").toUpperCase()}
-            </div>
-            <div className="min-w-0">
-              <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                Você será atendido por
-              </div>
-              <div className="text-sm font-semibold truncate">{pro.name}</div>
-              <div className="text-xs text-muted-foreground truncate">
-                {pro.specialty}
-                {area ? ` · ${area.name}` : ""}
-              </div>
-            </div>
-          </div>
-        )}
-        {pro ? (
-          <Link
-            to="/portal/$slug/$pro"
-            params={{ slug: clinicSlug, pro: pro.slug }}
-            reloadDocument
-            className="inline-flex items-center justify-center gap-2 rounded-md gradient-primary text-primary-foreground px-4 py-2 text-sm font-medium shadow-soft"
-          >
-            Fazer outro agendamento
-          </Link>
-        ) : (
-          <Link
-            to="/portal/$slug"
-            params={{ slug: clinicSlug }}
-            reloadDocument
-            className="inline-flex items-center justify-center gap-2 rounded-md gradient-primary text-primary-foreground px-4 py-2 text-sm font-medium shadow-soft"
-          >
-            Fazer outro agendamento
-          </Link>
-        )}
-      </Card>
+      <div className="text-sm font-medium mt-0.5">{value}</div>
     </div>
   );
 }
