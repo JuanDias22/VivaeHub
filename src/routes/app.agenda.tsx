@@ -304,6 +304,7 @@ function AppointmentCard({
   const pro = store.professionals.find((p) => p.id === a.professionalId);
   const checkedIn = store.reception.some((r) => r.appointmentId === a.id);
   const isContrib = pt?.isContributor ?? false;
+  const affected = (a.notes ?? "").includes("[Afetada por indisponibilidade]");
 
   return (
     <button
@@ -344,6 +345,15 @@ function AppointmentCard({
             {checkedIn && (
               <Badge variant="outline" className="border-primary/40 text-primary text-[10px] py-0 h-4">
                 <ConciergeBell className="h-2.5 w-2.5 mr-0.5" /> Check-in
+              </Badge>
+            )}
+            {affected && (
+              <Badge
+                variant="outline"
+                className="border-destructive/40 text-destructive text-[10px] py-0 h-4"
+                title="Afetada por indisponibilidade do profissional"
+              >
+                <AlertTriangle className="h-2.5 w-2.5 mr-0.5" /> Indisponível
               </Badge>
             )}
           </div>
