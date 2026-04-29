@@ -41,6 +41,8 @@ import {
   Phone,
   History,
   ArrowRight,
+  CalendarOff,
+  AlertTriangle,
 } from "lucide-react";
 import {
   addDays,
@@ -52,6 +54,7 @@ import {
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
 import { FinancialBadge } from "@/components/financial-badge";
+import { BlockScheduleDialog } from "@/components/block-schedule-dialog";
 
 export const Route = createFileRoute("/app/agenda")({
   component: Agenda,
@@ -99,6 +102,15 @@ function Agenda() {
             >
               Hoje
             </Button>
+            <BlockScheduleDialog
+              defaultDate={current}
+              professionalId={proFilter !== "all" ? proFilter : undefined}
+              trigger={
+                <Button variant="outline" size="sm">
+                  <CalendarOff className="h-4 w-4 mr-1" /> Bloquear período
+                </Button>
+              }
+            />
             <NewAppointmentDialog open={open} onOpenChange={setOpen} defaultDate={current} />
           </>
         }
