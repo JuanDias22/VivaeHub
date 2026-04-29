@@ -30,7 +30,7 @@ import {
 import { Plus, Heart, TrendingUp, Calendar } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { MIN_CONTRIBUTION, type Patient } from "@/lib/mock-store";
+import { CONTRIBUTION_AMOUNT, type Patient } from "@/lib/mock-store";
 import { ContributionBadge } from "@/components/financial-badge";
 
 export const Route = createFileRoute("/app/associados")({
@@ -214,7 +214,6 @@ function RegisterContribDialog({
 }) {
   const store = useStore();
   const [patientId, setPatientId] = useState("");
-  const [amount, setAmount] = useState(MIN_CONTRIBUTION);
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -222,15 +221,10 @@ function RegisterContribDialog({
       toast.error("Selecione um paciente");
       return;
     }
-    if (amount < MIN_CONTRIBUTION) {
-      toast.error(`Valor mínimo: R$ ${MIN_CONTRIBUTION}`);
-      return;
-    }
-    store.registerContribution(patientId, amount);
+    store.registerContribution(patientId);
     toast.success("Contribuição registrada");
     onOpenChange(false);
     setPatientId("");
-    setAmount(MIN_CONTRIBUTION);
   }
 
   return (
@@ -260,16 +254,8 @@ function RegisterContribDialog({
               </SelectContent>
             </Select>
           </div>
-          <div className="space-y-1.5">
-            <Label>Valor da contribuição (mínimo R$ {MIN_CONTRIBUTION})</Label>
-            <Input
-              type="number"
-              step="0.01"
-              min={MIN_CONTRIBUTION}
-              value={amount}
-              onChange={(e) => setAmount(Number(e.target.value))}
-              required
-            />
+          <div className="rounded-lg border bg-primary/5 border-primary/20 p-3 text-sm">
+            Valor fixo da contribuição: <strong>R$ {CONTRIBUTION_AMOUNT},00/mês</strong>
           </div>
           <DialogFooter>
             <Button type="submit" className="gradient-primary">Registrar</Button>
