@@ -667,6 +667,13 @@ class Store {
       this.emit();
     }
   }
+  updateAppointmentNotes(id: string, notes: string) {
+    const a = this.appointments.find((x) => x.id === id);
+    if (a) {
+      a.notes = notes;
+      this.emit();
+    }
+  }
   sendReminder(appointmentId: string) {
     const a = this.appointments.find((x) => x.id === appointmentId);
     if (!a) return;
