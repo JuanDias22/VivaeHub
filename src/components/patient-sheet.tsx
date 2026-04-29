@@ -9,22 +9,22 @@ import {
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem,
-} from "@/components/ui/select";
-import { FinancialBadge } from "@/components/financial-badge";
+import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
+import { ContributionBadge } from "@/components/financial-badge";
+import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
 import {
-  ACTIVITY_LABEL,
-  GOAL_LABEL,
+  CONDITION_LABEL,
+  DIABETES_TYPE_LABEL,
+  type AnamnesisField,
+  type AreaAnamnesis,
 } from "@/lib/mock-store";
-import { FileText, ClipboardList, Activity, History, Phone, CalendarDays } from "lucide-react";
+import { FileText, History, Phone, CalendarDays, Lock, Save, Stethoscope } from "lucide-react";
 
 export function PatientSheet({
   patientId,
@@ -39,6 +39,8 @@ export function PatientSheet({
     ? store.professionals.find((p) => p.id === patient.professionalId)
     : null;
   const lastContrib = patient ? store.getLastContribution(patient.id) : undefined;
+  const activePro = store.getActiveProfessional();
+  const activeAreaId = activePro?.areaId;
 
   const apptHistory = patient
     ? store.appointments
@@ -64,42 +66,63 @@ export function PatientSheet({
                 </span>
               </div>
               <div className="flex flex-wrap items-center gap-2">
-                {patient && <FinancialBadge status={patient.isContributor} />}
-                {patient?.isContributor && patient.contributionAmount && (
+                <ContributionBadge status={patient.isContributor} />
+                {patient.isContributor && patient.contributionAmount && (
                   <span className="text-xs text-muted-foreground">
                     R$ {patient.contributionAmount.toFixed(2)}/mês
                   </span>
                 )}
                 {responsible && (
                   <span className="text-xs text-muted-foreground">
-                    · Responsável: {responsible.name}
+                    · Resp.: {responsible.name}
                   </span>
                 )}
                 {lastContrib && (
                   <span className="text-xs text-muted-foreground">
-                    · Última contrib.: {format(new Date(lastContrib.date), "dd/MM/yyyy")}
+                    · Últ. contrib.: {format(new Date(lastContrib.date), "dd/MM/yyyy")}
                   </span>
                 )}
               </div>
+              {activePro && (
+                <div className="text-[11px] rounded-md bg-muted/50 px-2 py-1 inline-flex items-center gap-1 w-fit">
+                  <Stethoscope className="h-3 w-3" /> Atuando como {activePro.name}
+                </div>
+              )}
             </SheetHeader>
 
-            <Tabs defaultValue="historico" className="mt-6">
-              <TabsList className="grid grid-cols-4 w-full">
+            <Tabs defaultValue="clinico" className="mt-6">
+              <TabsList className="grid grid-cols-3 sm:grid-cols-6 w-full h-auto">
+                <TabsTrigger value="clinico" className="text-xs">Clínico</TabsTrigger>
+                {store.areas.map((a) => (
+                  <TabsTrigger key={a.id} value={`area-${a.id}`} className="text-xs">
+                    {a.name}
+                  </TabsTrigger>
+                ))}
                 <TabsTrigger value="historico" className="text-xs">
                   <History className="h-3 w-3 mr-1" /> Histórico
                 </TabsTrigger>
-                <TabsTrigger value="anamnese" className="text-xs">
-                  <ClipboardList className="h-3 w-3 mr-1" /> Anamnese
-                </TabsTrigger>
-                <TabsTrigger value="exames" className="text-xs">
-                  <FileText className="h-3 w-3 mr-1" /> Exames
-                </TabsTrigger>
-                <TabsTrigger value="anotacoes" className="text-xs">
-                  <Activity className="h-3 w-3 mr-1" /> Anotações
-                </TabsTrigger>
               </TabsList>
 
-              {/* HISTÓRICO — linha do tempo */}
+              {/* CLÍNICO — visível para todos, alimentado pelo cadastro APAD */}
+              <TabsContent value="clinico" className="mt-4 space-y-4">
+                <ClinicoView patientId={patient.id} />
+              </TabsContent>
+
+              {/* Uma aba por área */}
+              {store.areas.map((a) => {
+                const allowed = !activeAreaId || activeAreaId === a.id;
+                return (
+                  <TabsContent key={a.id} value={`area-${a.id}`} className="mt-4 space-y-4">
+                    {!allowed ? (
+                      <RestrictedNotice areaName={a.name} activePro={activePro?.name} />
+                    ) : (
+                      <AreaPanel patientId={patient.id} areaId={a.id} />
+                    )}
+                  </TabsContent>
+                );
+              })}
+
+              {/* HISTÓRICO */}
               <TabsContent value="historico" className="mt-4">
                 {apptHistory.length === 0 ? (
                   <EmptyState text="Nenhum atendimento registrado." />
@@ -120,9 +143,7 @@ export function PatientSheet({
                             <div className="rounded-lg border bg-card p-3">
                               <div className="flex items-center justify-between gap-2 mb-1">
                                 <div className="text-xs text-muted-foreground">
-                                  {format(new Date(a.date), "dd MMM yyyy 'às' HH:mm", {
-                                    locale: ptBR,
-                                  })}
+                                  {format(new Date(a.date), "dd MMM yyyy 'às' HH:mm", { locale: ptBR })}
                                 </div>
                                 <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
                                   {past ? "Realizada" : "Agendada"}
@@ -140,75 +161,6 @@ export function PatientSheet({
                   </div>
                 )}
               </TabsContent>
-
-              {/* ANAMNESE */}
-              <TabsContent value="anamnese" className="mt-4">
-                {!patient.anamnesis ? (
-                  <EmptyState text="Anamnese ainda não preenchida. O paciente pode preencher pelo Portal do Paciente." />
-                ) : (
-                  <div className="space-y-3 text-sm">
-                    <Field label="Preenchida em">
-                      {format(new Date(patient.anamnesis.filledAt), "dd/MM/yyyy")}
-                    </Field>
-                    <div className="grid grid-cols-2 gap-3">
-                      <Field label="Idade">{patient.anamnesis.age ?? "—"}</Field>
-                      <Field label="Sexo">{patient.anamnesis.sex ?? "—"}</Field>
-                    </div>
-                    <Field label="Objetivo">
-                      {patient.anamnesis.goal ? GOAL_LABEL[patient.anamnesis.goal] : "—"}
-                    </Field>
-                    <Field label="Atividade física">
-                      {patient.anamnesis.activity
-                        ? ACTIVITY_LABEL[patient.anamnesis.activity]
-                        : "—"}
-                    </Field>
-                    <Field label="Doenças">{patient.anamnesis.diseases || "—"}</Field>
-                    <Field label="Alergias">{patient.anamnesis.allergies || "—"}</Field>
-                    <Field label="Medicamentos">{patient.anamnesis.medications || "—"}</Field>
-                    <Field label="Cirurgias">{patient.anamnesis.surgeries || "—"}</Field>
-                    <Field label="Hábitos alimentares">
-                      {patient.anamnesis.eatingHabits || "—"}
-                    </Field>
-                    <Field label="Avaliação física desejada">
-                      {patient.anamnesis.evaluation === "dobras"
-                        ? "Dobras cutâneas"
-                        : patient.anamnesis.evaluation === "bioimpedancia"
-                          ? "Bioimpedância"
-                          : "—"}
-                    </Field>
-                  </div>
-                )}
-              </TabsContent>
-
-              {/* EXAMES */}
-              <TabsContent value="exames" className="mt-4">
-                {patient.exams.length === 0 ? (
-                  <EmptyState text="Nenhum exame anexado." />
-                ) : (
-                  <div className="space-y-2">
-                    {patient.exams.map((ex) => (
-                      <div
-                        key={ex.id}
-                        className="flex items-center gap-3 p-3 rounded-lg border bg-card"
-                      >
-                        <FileText className="h-4 w-4 text-primary shrink-0" />
-                        <div className="flex-1 min-w-0">
-                          <div className="text-sm font-medium truncate">{ex.name}</div>
-                          <div className="text-xs text-muted-foreground">
-                            {(ex.sizeKb / 1024).toFixed(2)} MB ·{" "}
-                            {format(new Date(ex.uploadedAt), "dd/MM/yyyy")}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </TabsContent>
-
-              {/* ANOTAÇÕES */}
-              <TabsContent value="anotacoes" className="mt-4">
-                <NotesPanel patientId={patient.id} />
-              </TabsContent>
             </Tabs>
           </>
         )}
@@ -217,56 +169,275 @@ export function PatientSheet({
   );
 }
 
-function NotesPanel({ patientId }: { patientId: string }) {
+function ClinicoView({ patientId }: { patientId: string }) {
   const store = useStore();
-  const [content, setContent] = useState("");
-  const [proId, setProId] = useState("");
-  const patient = store.patients.find((p) => p.id === patientId);
-
-  function addNote(e: React.FormEvent) {
-    e.preventDefault();
-    if (!patient || !proId || !content.trim()) return;
-    store.addPatientNote(patient.id, proId, content);
-    setContent("");
-    toast.success("Anotação adicionada ao prontuário");
-  }
-  if (!patient) return null;
+  const pt = store.patients.find((p) => p.id === patientId);
+  if (!pt) return null;
+  const { personal, health } = pt;
+  const conds = health?.conditions
+    ? (Object.entries(health.conditions) as Array<[keyof typeof CONDITION_LABEL, boolean]>)
+        .filter(([, v]) => v)
+        .map(([k]) => CONDITION_LABEL[k])
+    : [];
 
   return (
     <>
-      <form onSubmit={addNote} className="space-y-3 p-3 rounded-lg border bg-muted/30 mb-4">
-        <Select value={proId} onValueChange={setProId}>
-          <SelectTrigger>
-            <SelectValue placeholder="Profissional responsável" />
-          </SelectTrigger>
-          <SelectContent>
-            {store.professionals.map((p) => (
-              <SelectItem key={p.id} value={p.id}>
-                {p.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Textarea
-          value={content}
-          onChange={(e) => setContent(e.target.value)}
-          placeholder="Anotações da consulta..."
-          rows={3}
-        />
-        <Button type="submit" size="sm" className="gradient-primary w-full">
-          Adicionar ao prontuário
-        </Button>
-      </form>
+      <div className="rounded-lg border p-4 bg-card space-y-2">
+        <div className="text-xs uppercase tracking-wider text-muted-foreground">Identificação</div>
+        <div className="grid grid-cols-2 gap-3 text-sm">
+          <Field label="RG">{personal?.rg || "—"}</Field>
+          <Field label="CPF">{personal?.cpf || "—"}</Field>
+          <Field label="Profissão">{personal?.profession || "—"}</Field>
+          <Field label="E-mail">{pt.email || "—"}</Field>
+          <Field label="Tel. fixo">{personal?.landline || "—"}</Field>
+          <Field label="Celular">{pt.phone}</Field>
+        </div>
+      </div>
 
-      {patient.notes.length === 0 ? (
-        <EmptyState text="Nenhuma anotação ainda." />
+      <div className="rounded-lg border p-4 bg-card space-y-2">
+        <div className="text-xs uppercase tracking-wider text-muted-foreground">Endereço</div>
+        <div className="text-sm">
+          {[personal?.street, personal?.number, personal?.complement].filter(Boolean).join(", ") || "—"}
+          {personal?.district && <span className="text-muted-foreground"> · {personal.district}</span>}
+          <div className="text-muted-foreground">
+            {[personal?.city, personal?.state, personal?.cep].filter(Boolean).join(" · ") || "—"}
+          </div>
+        </div>
+      </div>
+
+      <div className="rounded-lg border p-4 bg-card space-y-2">
+        <div className="text-xs uppercase tracking-wider text-muted-foreground">Saúde</div>
+        <div className="grid grid-cols-2 gap-3 text-sm">
+          <Field label="Tipo">
+            {health?.diabetesType ? DIABETES_TYPE_LABEL[health.diabetesType] : "—"}
+          </Field>
+          <Field label="Diagnóstico">{health?.diagnosisYear || "—"}</Field>
+          <Field label="Como conheceu" className="col-span-2">
+            {health?.howKnewAssociation || "—"}
+          </Field>
+          <Field label="Medicamentos" className="col-span-2">
+            {health?.medications || "—"}
+          </Field>
+        </div>
+        {conds.length > 0 && (
+          <div className="pt-2">
+            <div className="text-xs uppercase tracking-wider text-muted-foreground mb-1.5">Condições</div>
+            <div className="flex flex-wrap gap-1.5">
+              {conds.map((c) => (
+                <Badge key={c} variant="outline" className="text-[10px]">{c}</Badge>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {pt.exams.length > 0 && (
+        <div className="rounded-lg border p-4 bg-card space-y-2">
+          <div className="text-xs uppercase tracking-wider text-muted-foreground">Exames anexados</div>
+          <div className="space-y-1.5">
+            {pt.exams.map((ex) => (
+              <div key={ex.id} className="flex items-center gap-2 text-sm">
+                <FileText className="h-3.5 w-3.5 text-primary" />
+                <span className="flex-1 truncate">{ex.name}</span>
+                <span className="text-xs text-muted-foreground tabular-nums">
+                  {(ex.sizeKb / 1024).toFixed(1)}MB
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+function RestrictedNotice({ areaName, activePro }: { areaName: string; activePro?: string }) {
+  return (
+    <div className="rounded-lg border border-dashed p-8 text-center">
+      <Lock className="h-6 w-6 text-muted-foreground mx-auto mb-2" />
+      <div className="text-sm font-medium">Conteúdo restrito à área de {areaName}</div>
+      <div className="text-xs text-muted-foreground mt-1">
+        {activePro ? `Você está atuando como ${activePro}.` : "Selecione um profissional desta área."}
+        {" "}Mude o perfil ativo em Profissionais → Atuar como.
+      </div>
+    </div>
+  );
+}
+
+function AreaPanel({ patientId, areaId }: { patientId: string; areaId: string }) {
+  const store = useStore();
+  const area = store.areas.find((a) => a.id === areaId);
+  const activePro = store.getActiveProfessional();
+  const proInArea = activePro && activePro.areaId === areaId ? activePro : undefined;
+  const template = proInArea?.anamnesisTemplate;
+  const existing = store.getAreaAnamnesis(patientId, areaId);
+
+  return (
+    <>
+      {/* Anamnese da área */}
+      <div className="rounded-lg border bg-card p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="text-xs uppercase tracking-wider text-muted-foreground">Anamnese</div>
+            <div className="text-sm font-semibold">{area?.name}</div>
+          </div>
+          {existing && (
+            <span className="text-xs text-muted-foreground">
+              Preenchida em {format(new Date(existing.filledAt), "dd/MM/yyyy")}
+            </span>
+          )}
+        </div>
+        {!proInArea ? (
+          <div className="text-xs text-muted-foreground">
+            Atue como um profissional desta área para preencher/editar a anamnese.
+          </div>
+        ) : !template || template.fields.length === 0 ? (
+          <div className="text-xs text-muted-foreground">
+            Você ainda não tem um modelo de anamnese. Configure em Profissionais → Modelo de anamnese.
+          </div>
+        ) : (
+          <AnamneseForm
+            patientId={patientId}
+            areaId={areaId}
+            professionalId={proInArea.id}
+            fields={template.fields}
+            existing={existing}
+          />
+        )}
+      </div>
+
+      {/* Anotações da área */}
+      <NotesPanel patientId={patientId} areaId={areaId} canEdit={!!proInArea} professionalId={proInArea?.id} />
+    </>
+  );
+}
+
+function AnamneseForm({
+  patientId, areaId, professionalId, fields, existing,
+}: {
+  patientId: string; areaId: string; professionalId: string;
+  fields: AnamnesisField[]; existing?: AreaAnamnesis;
+}) {
+  const store = useStore();
+  const [answers, setAnswers] = useState<Record<string, string | string[] | boolean>>(
+    existing?.answers ?? {},
+  );
+
+  function setVal(id: string, v: string | string[] | boolean) {
+    setAnswers((a) => ({ ...a, [id]: v }));
+  }
+
+  function save() {
+    const anam: AreaAnamnesis = {
+      areaId,
+      professionalId,
+      filledAt: new Date().toISOString(),
+      answers,
+    };
+    store.setAreaAnamnesis(patientId, anam);
+    toast.success("Anamnese salva");
+  }
+
+  return (
+    <div className="space-y-3">
+      {fields.map((f) => {
+        const v = answers[f.id];
+        return (
+          <div key={f.id} className="space-y-1.5">
+            <Label className="text-xs">{f.label}</Label>
+            {f.type === "texto" && (
+              <Input value={typeof v === "string" ? v : ""} onChange={(e) => setVal(f.id, e.target.value)} />
+            )}
+            {f.type === "textarea" && (
+              <Textarea rows={3} value={typeof v === "string" ? v : ""} onChange={(e) => setVal(f.id, e.target.value)} />
+            )}
+            {f.type === "checkbox" && (
+              <label className="flex items-center gap-2">
+                <Checkbox checked={v === true} onCheckedChange={(c) => setVal(f.id, !!c)} />
+                <span className="text-sm text-muted-foreground">Marcar</span>
+              </label>
+            )}
+            {f.type === "sim_nao" && (
+              <RadioGroup
+                value={typeof v === "string" ? v : ""}
+                onValueChange={(val) => setVal(f.id, val)}
+                className="flex gap-3"
+              >
+                <label className="flex items-center gap-1.5 text-sm"><RadioGroupItem value="sim" /> Sim</label>
+                <label className="flex items-center gap-1.5 text-sm"><RadioGroupItem value="nao" /> Não</label>
+              </RadioGroup>
+            )}
+            {f.type === "multipla" && (
+              <RadioGroup
+                value={typeof v === "string" ? v : ""}
+                onValueChange={(val) => setVal(f.id, val)}
+                className="grid grid-cols-1 sm:grid-cols-2 gap-1.5"
+              >
+                {(f.options ?? []).map((opt) => (
+                  <label key={opt} className="flex items-center gap-2 rounded-md border p-2 text-sm cursor-pointer hover:bg-muted/40">
+                    <RadioGroupItem value={opt} /> {opt}
+                  </label>
+                ))}
+              </RadioGroup>
+            )}
+          </div>
+        );
+      })}
+      <Button size="sm" onClick={save} className="gradient-primary">
+        <Save className="h-3 w-3 mr-1" /> Salvar anamnese
+      </Button>
+    </div>
+  );
+}
+
+function NotesPanel({
+  patientId, areaId, canEdit, professionalId,
+}: {
+  patientId: string; areaId: string; canEdit: boolean; professionalId?: string;
+}) {
+  const store = useStore();
+  const [content, setContent] = useState("");
+  const patient = store.patients.find((p) => p.id === patientId);
+  if (!patient) return null;
+
+  const notes = patient.notes.filter((n) => n.areaId === areaId);
+
+  function add(e: React.FormEvent) {
+    e.preventDefault();
+    if (!professionalId || !content.trim()) return;
+    store.addPatientNote(patient!.id, professionalId, areaId, content);
+    setContent("");
+    toast.success("Anotação adicionada");
+  }
+
+  return (
+    <div className="rounded-lg border bg-card p-4 space-y-3">
+      <div className="text-xs uppercase tracking-wider text-muted-foreground">Anotações desta área</div>
+      {canEdit ? (
+        <form onSubmit={add} className="space-y-2">
+          <Textarea
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            placeholder="Anotação da consulta..."
+            rows={3}
+          />
+          <Button type="submit" size="sm" className="gradient-primary">Adicionar</Button>
+        </form>
       ) : (
-        <div className="space-y-3">
-          {patient.notes.map((n) => {
-            const pro = store.professionals.find((x) => x.id === n.professionalId);
+        <div className="text-xs text-muted-foreground">
+          Atue como um profissional desta área para adicionar anotações.
+        </div>
+      )}
+
+      {notes.length === 0 ? (
+        <div className="text-xs text-muted-foreground">Nenhuma anotação.</div>
+      ) : (
+        <div className="space-y-2">
+          {notes.map((n) => {
+            const pro = store.professionals.find((p) => p.id === n.professionalId);
             return (
-              <div key={n.id} className="p-3 rounded-lg border bg-card">
-                <div className="flex items-center justify-between text-xs text-muted-foreground mb-2">
+              <div key={n.id} className="p-3 rounded-lg border bg-background">
+                <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
                   <span>{pro?.name}</span>
                   <span>{format(new Date(n.date), "dd MMM yyyy", { locale: ptBR })}</span>
                 </div>
@@ -276,14 +447,14 @@ function NotesPanel({ patientId }: { patientId: string }) {
           })}
         </div>
       )}
-    </>
+    </div>
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({ label, children, className }: { label: string; children: React.ReactNode; className?: string }) {
   return (
-    <div>
-      <div className="text-xs uppercase tracking-wider text-muted-foreground mb-0.5">{label}</div>
+    <div className={className}>
+      <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-0.5">{label}</div>
       <div className="text-sm">{children}</div>
     </div>
   );

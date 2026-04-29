@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -27,7 +27,11 @@ import { format } from "date-fns";
 import { toast } from "sonner";
 import { PatientSheet } from "@/components/patient-sheet";
 import { ContributionBadge } from "@/components/financial-badge";
-import { MIN_CONTRIBUTION } from "@/lib/mock-store";
+import {
+  CONTRIBUTION_AMOUNT,
+  CONTRIBUTION_TEXT,
+  LGPD_TEXT,
+} from "@/lib/mock-store";
 
 export const Route = createFileRoute("/app/pacientes")({
   component: Pacientes,
@@ -125,12 +129,12 @@ function NewPatientDialog({
   const [birthDate, setBirthDate] = useState("");
   const [professionalId, setProfessionalId] = useState<string>("none");
   const [isContributor, setIsContributor] = useState(false);
-  const [contributionAmount, setContributionAmount] = useState(MIN_CONTRIBUTION);
+  const [lgpdConsent, setLgpdConsent] = useState(false);
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (isContributor && contributionAmount < MIN_CONTRIBUTION) {
-      toast.error(`Valor mínimo de contribuição: R$ ${MIN_CONTRIBUTION}`);
+    if (!lgpdConsent) {
+      toast.error("Aceite o termo de uso de dados (LGPD)");
       return;
     }
     store.addPatient({
@@ -140,7 +144,8 @@ function NewPatientDialog({
       birthDate,
       professionalId: professionalId === "none" ? undefined : professionalId,
       isContributor,
-      contributionAmount: isContributor ? contributionAmount : undefined,
+      contributionAmount: isContributor ? CONTRIBUTION_AMOUNT : undefined,
+      lgptConsent: lgpdConsent,
     });
     toast.success("Paciente cadastrado · associado automaticamente");
     onOpenChange(false);
@@ -150,7 +155,7 @@ function NewPatientDialog({
     setBirthDate("");
     setProfessionalId("none");
     setIsContributor(false);
-    setContributionAmount(MIN_CONTRIBUTION);
+    setLgpdConsent(false);
   }
 
   return (
@@ -208,30 +213,19 @@ function NewPatientDialog({
             </Select>
           </div>
 
-          <div className="rounded-lg border p-3 bg-muted/30 space-y-3">
-            <div className="flex items-center justify-between">
-              <div>
-                <Label className="text-sm">Paciente contribuinte?</Label>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  A contribuição é opcional e ajuda na manutenção dos atendimentos.
-                </p>
-              </div>
-              <Switch checked={isContributor} onCheckedChange={setIsContributor} />
+          <label className="flex items-start gap-3 rounded-lg border p-3 cursor-pointer hover:bg-muted/30">
+            <Checkbox checked={lgpdConsent} onCheckedChange={(v) => setLgpdConsent(!!v)} />
+            <div className="text-xs leading-relaxed">
+              <strong>LGPD *</strong>
+              <div className="text-muted-foreground mt-0.5">{LGPD_TEXT}</div>
             </div>
-            {isContributor && (
-              <div className="space-y-1.5">
-                <Label>Valor mensal (mínimo R$ {MIN_CONTRIBUTION})</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  min={MIN_CONTRIBUTION}
-                  value={contributionAmount}
-                  onChange={(e) => setContributionAmount(Number(e.target.value))}
-                  required
-                />
-              </div>
-            )}
-          </div>
+          </label>
+          <label className="flex items-start gap-3 rounded-lg border bg-primary/5 border-primary/20 p-3 cursor-pointer hover:bg-primary/10">
+            <Checkbox checked={isContributor} onCheckedChange={(v) => setIsContributor(!!v)} />
+            <div className="text-xs leading-relaxed text-muted-foreground">
+              {CONTRIBUTION_TEXT}
+            </div>
+          </label>
 
           <DialogFooter>
             <Button type="submit" className="gradient-primary">Cadastrar</Button>
