@@ -22,9 +22,10 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select";
-import { Plus, Trash2, Tag, Link2, Copy } from "lucide-react";
+import { Plus, Trash2, Tag, Link2, Copy, CalendarOff } from "lucide-react";
 import { toast } from "sonner";
 import { isSameDay } from "date-fns";
+import { BlockScheduleDialog } from "@/components/block-schedule-dialog";
 
 export const Route = createFileRoute("/app/profissionais")({
   component: Profissionais,
@@ -125,6 +126,19 @@ function Profissionais() {
                 </div>
               </div>
               <PortalLink clinicSlug={store.clinic.slug} proSlug={p.slug} />
+            <BlockScheduleDialog
+              professionalId={p.id}
+              lockProfessional
+              trigger={
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full mt-2"
+                >
+                  <CalendarOff className="h-3.5 w-3.5 mr-1" /> Bloquear agenda
+                </Button>
+              }
+            />
             </Card>
           );
         })}
