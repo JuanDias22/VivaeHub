@@ -184,7 +184,7 @@ export async function hydrateFromSupabase(): Promise<boolean> {
 
   store.authed = true;
   store.activeProfessionalId = store.professionals[0]?.id ?? null;
-  store.notify();
+  (store as unknown as { emit: () => void })["emit"]();
   return true;
 }
 
@@ -356,7 +356,7 @@ export function syncUpdateProfessional(id: string, patch: Partial<Professional>)
   if (Object.keys(row).length === 0) return;
   void supabase
     .from("professionals")
-    .update(row)
+    .update(row as never)
     .eq("id", id)
     .then(({ error }) => logErr("update professional", error));
 }
@@ -401,7 +401,7 @@ export function syncUpdateAppointment(id: string, patch: Partial<Appointment>) {
   if (Object.keys(row).length === 0) return;
   void supabase
     .from("appointments")
-    .update(row)
+    .update(row as never)
     .eq("id", id)
     .then(({ error }) => logErr("update appointment", error));
 }
