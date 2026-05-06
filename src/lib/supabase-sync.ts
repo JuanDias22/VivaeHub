@@ -621,6 +621,14 @@ export function syncDeleteProfessional(id: string) {
     .then(({ error }) => logErr("delete professional", error));
 }
 
+export function syncDeletePatient(id: string) {
+  void supabase
+    .from("patients")
+    .delete()
+    .eq("id", id)
+    .then(({ error }) => logErr("delete patient", error));
+}
+
 /* ============== Realtime ============== */
 
 let realtimeChannel: ReturnType<typeof supabase.channel> | null = null;
