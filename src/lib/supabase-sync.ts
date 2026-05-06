@@ -184,7 +184,7 @@ export async function hydrateFromSupabase(): Promise<boolean> {
 
   store.authed = true;
   store.activeProfessionalId = store.professionals[0]?.id ?? null;
-  (store as unknown as { emit: () => void })["emit"]();
+  store.emit();
   return true;
 }
 
