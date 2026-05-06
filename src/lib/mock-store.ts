@@ -509,6 +509,21 @@ class Store {
     sync.syncUpdateProfessional(id, { anamnesisTemplate: pro.anamnesisTemplate });
     this.emit();
   }
+  removeProfessional(id: string) {
+    const hasAppts = this.appointments.some((a) => a.professionalId === id);
+    if (hasAppts) return false;
+    this.professionals = this.professionals.filter((p) => p.id !== id);
+    this.scheduleBlocks = this.scheduleBlocks.filter((b) => b.professionalId !== id);
+    this.patients.forEach((p) => {
+      if (p.professionalId === id) p.professionalId = undefined;
+    });
+    if (this.activeProfessionalId === id) {
+      this.activeProfessionalId = this.professionals[0]?.id ?? null;
+    }
+    sync.syncDeleteProfessional(id);
+    this.emit();
+    return true;
+  }
   private uniqueProfessionalSlug(base: string, ignoreId?: string): string {
     const taken = new Set(
       this.professionals.filter((p) => p.id !== ignoreId).map((p) => p.slug),
