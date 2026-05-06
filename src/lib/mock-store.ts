@@ -2,7 +2,7 @@
 // Multi-tenant: each "session" works inside a single clinic/association.
 // Modelo: todo paciente é associado automaticamente; contribuição é fixa de R$50/mês.
 
-import { addDays, addHours, format, startOfDay } from "date-fns";
+import { format } from "date-fns";
 import * as sync from "./supabase-sync";
 
 export type Area = {
