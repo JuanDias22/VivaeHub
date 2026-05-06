@@ -344,27 +344,28 @@ function clinic(): string | null {
 export function syncInsertPatient(p: Patient) {
   const cid = clinic();
   if (!cid) return;
-  const write = supabase
-    .from("patients")
-    .insert({
-      id: p.id,
-      clinic_id: cid,
-      name: p.name,
-      phone: p.phone,
-      birth_date: p.birthDate || null,
-      email: p.email ?? null,
-      professional_id: p.professionalId ?? null,
-      is_contributor: p.isContributor,
-      contribution_amount: p.contributionAmount ?? null,
-      lgpt_consent: !!p.lgptConsent,
-      personal: (p.personal as never) ?? null,
-      health: (p.health as never) ?? null,
-    })
-    .then(({ error }) => {
-      logErr("insert patient", error);
-      broadcastPublicMutation("patient");
-    })
-    .finally(() => pendingPatientWrites.delete(p.id));
+  const write = Promise.resolve(
+    supabase
+      .from("patients")
+      .insert({
+        id: p.id,
+        clinic_id: cid,
+        name: p.name,
+        phone: p.phone,
+        birth_date: p.birthDate || null,
+        email: p.email ?? null,
+        professional_id: p.professionalId ?? null,
+        is_contributor: p.isContributor,
+        contribution_amount: p.contributionAmount ?? null,
+        lgpt_consent: !!p.lgptConsent,
+        personal: (p.personal as never) ?? null,
+        health: (p.health as never) ?? null,
+      })
+      .then(({ error }) => {
+        logErr("insert patient", error);
+        broadcastPublicMutation("patient");
+      }),
+  ).finally(() => pendingPatientWrites.delete(p.id));
   pendingPatientWrites.set(p.id, write);
   void write;
 }
