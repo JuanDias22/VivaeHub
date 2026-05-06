@@ -20,6 +20,8 @@ import {
   type ContributionEntry,
 } from "./mock-store";
 
+let publicSyncBroadcast: BroadcastChannel | null = null;
+
 let currentUserId: string | null = null;
 let currentClinicId: string | null = null;
 
@@ -28,6 +30,12 @@ export function getClinicId() {
 }
 export function getUserId() {
   return currentUserId;
+}
+
+function broadcastPublicMutation(kind: "appointment" | "patient") {
+  if (typeof window === "undefined") return;
+  publicSyncBroadcast ??= new BroadcastChannel("vivaehub-sync");
+  publicSyncBroadcast.postMessage({ kind, clinicId: currentClinicId, at: Date.now() });
 }
 
 function logErr(label: string, err: unknown) {
