@@ -24,6 +24,7 @@ let publicSyncBroadcast: BroadcastChannel | null = null;
 
 let currentUserId: string | null = null;
 let currentClinicId: string | null = null;
+const pendingPatientWrites = new Map<string, Promise<void>>();
 
 export function getClinicId() {
   return currentClinicId;
@@ -194,6 +195,7 @@ export async function hydrateFromSupabase(): Promise<boolean> {
   store.activeProfessionalId = store.professionals[0]?.id ?? null;
   store.emit();
   subscribeRealtime();
+  listenForPublicSync();
   return true;
 }
 
