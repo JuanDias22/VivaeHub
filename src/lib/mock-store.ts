@@ -445,6 +445,15 @@ class Store {
     return pt?.isContributor ? "contribuinte" : "nao_contribuinte";
   }
 
+  setContributorStatus(patientId: string, isContributor: boolean) {
+    const pt = this.patients.find((x) => x.id === patientId);
+    if (!pt) return;
+    pt.isContributor = isContributor;
+    pt.contributionAmount = isContributor ? CONTRIBUTION_AMOUNT : undefined;
+    sync.syncMarkContributor(patientId, pt.contributionAmount ?? null);
+    this.emit();
+  }
+
   /** Registra uma contribuição (sempre R$50). */
   registerContribution(patientId: string) {
     const pt = this.patients.find((x) => x.id === patientId);
