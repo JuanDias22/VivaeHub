@@ -193,6 +193,53 @@ export function clearSyncSession() {
   currentClinicId = null;
 }
 
+/** Public hydration for the patient portal (anonymous). Loads clinic, areas,
+ * professionals and schedule blocks by clinic slug. Does not require auth. */
+export async function hydratePortalBySlug(slug: string): Promise<boolean> {
+  const { data: clinic } = await supabase
+    .from("clinics")
+    .select("*")
+    .eq("slug", slug)
+    .maybeSingle();
+  if (!clinic) return false;
+
+  const [areasRes, prosRes, blocksRes] = await Promise.all([
+    supabase.from("areas").select("*").eq("clinic_id", clinic.id),
+    supabase.from("professionals").select("*").eq("clinic_id", clinic.id),
+    supabase.from("schedule_blocks").select("*").eq("clinic_id", clinic.id),
+  ]);
+
+  currentClinicId = clinic.id;
+  store.clinic = {
+    name: clinic.name,
+    ownerEmail: clinic.owner_email,
+    slug: clinic.slug,
+    logoUrl: clinic.logo_url ?? undefined,
+  };
+  store.areas = (areasRes.data ?? []).map((a) => ({
+    id: a.id, name: a.name, color: a.color, key: a.key,
+  }));
+  store.professionals = (prosRes.data ?? []).map((p) => ({
+    id: p.id,
+    name: p.name,
+    specialty: p.specialty ?? "",
+    areaId: p.area_id ?? "",
+    color: p.color,
+    slug: p.slug,
+    anamnesisTemplate: (p.anamnesis_template as { fields: AnamnesisField[]; updatedAt: string } | null) ?? undefined,
+  }));
+  store.scheduleBlocks = (blocksRes.data ?? []).map((b) => ({
+    id: b.id,
+    professionalId: b.professional_id,
+    kind: b.kind as ScheduleBlock["kind"],
+    start: b.start_at,
+    end: b.end_at,
+    reason: b.reason ?? undefined,
+  }));
+  store.emit();
+  return true;
+}
+
 /* ============== write-through helpers ============== */
 
 function clinic(): string | null {
