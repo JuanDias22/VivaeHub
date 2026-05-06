@@ -344,7 +344,7 @@ function clinic(): string | null {
 export function syncInsertPatient(p: Patient) {
   const cid = clinic();
   if (!cid) return;
-  void supabase
+  const write = supabase
     .from("patients")
     .insert({
       id: p.id,
@@ -360,7 +360,13 @@ export function syncInsertPatient(p: Patient) {
       personal: (p.personal as never) ?? null,
       health: (p.health as never) ?? null,
     })
-    .then(({ error }) => logErr("insert patient", error));
+    .then(({ error }) => {
+      logErr("insert patient", error);
+      broadcastPublicMutation("patient");
+    })
+    .finally(() => pendingPatientWrites.delete(p.id));
+  pendingPatientWrites.set(p.id, write);
+  void write;
 }
 
 export function syncUpdatePatient(id: string, patch: Partial<Patient>) {
@@ -518,7 +524,7 @@ export function syncDeleteArea(id: string) {
 export function syncInsertAppointment(a: Appointment) {
   const cid = clinic();
   if (!cid) return;
-  void supabase
+  const insert = () => supabase
     .from("appointments")
     .insert({
       id: a.id,
@@ -537,7 +543,9 @@ export function syncInsertAppointment(a: Appointment) {
       // garantindo que todas as telas reflitam o estado real do banco
       // (e não apenas o estado local otimista).
       void refetchAppointments();
+      broadcastPublicMutation("appointment");
     });
+  void (pendingPatientWrites.get(a.patientId) ?? Promise.resolve()).then(insert);
 }
 export function syncUpdateAppointment(id: string, patch: Partial<Appointment>) {
   const row: Record<string, unknown> = {};
