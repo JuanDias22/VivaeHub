@@ -237,24 +237,10 @@ function ClinicoView({ patientId }: { patientId: string }) {
   );
 }
 
-function RestrictedNotice({ areaName, activePro }: { areaName: string; activePro?: string }) {
-  return (
-    <div className="rounded-lg border border-dashed p-8 text-center">
-      <Lock className="h-6 w-6 text-muted-foreground mx-auto mb-2" />
-      <div className="text-sm font-medium">Conteúdo restrito à área de {areaName}</div>
-      <div className="text-xs text-muted-foreground mt-1">
-        {activePro ? `Você está atuando como ${activePro}.` : "Selecione um profissional desta área."}
-        {" "}Mude o perfil ativo em Profissionais → Atuar como.
-      </div>
-    </div>
-  );
-}
-
 function AreaPanel({ patientId, areaId }: { patientId: string; areaId: string }) {
   const store = useStore();
   const area = store.areas.find((a) => a.id === areaId);
-  const activePro = store.getActiveProfessional();
-  const proInArea = activePro && activePro.areaId === areaId ? activePro : undefined;
+  const proInArea = store.professionals.find((p) => p.areaId === areaId);
   const template = proInArea?.anamnesisTemplate;
   const existing = store.getAreaAnamnesis(patientId, areaId);
 
