@@ -2,7 +2,7 @@
 // Multi-tenant: each "session" works inside a single clinic/association.
 // Modelo: todo paciente é associado automaticamente; contribuição é fixa de R$50/mês.
 
-import { addDays, addHours, format, startOfDay } from "date-fns";
+import { format } from "date-fns";
 import * as sync from "./supabase-sync";
 
 export type Area = {
@@ -306,127 +306,19 @@ class Store {
   /** Profissional "ativo" da sessão — usado para escopar o prontuário por área. */
   activeProfessionalId: string | null = null;
 
-  areas: Area[] = [
-    { id: "ar1", name: "Nutrição", color: "oklch(0.66 0.15 155)", key: "nutricao" },
-    { id: "ar2", name: "Enfermagem", color: "oklch(0.62 0.16 250)", key: "enfermagem" },
-    { id: "ar3", name: "Psicologia", color: "oklch(0.6 0.18 285)", key: "psicologia" },
-    { id: "ar4", name: "Podologia", color: "oklch(0.65 0.14 220)", key: "podologia" },
-  ];
-
-  professionals: Professional[] = [
-    { id: "p1", name: "Dra. Marina Costa", specialty: "Nutricionista", areaId: "ar1", color: "oklch(0.66 0.15 155)", slug: "marina-costa", anamnesisTemplate: defaultTemplate("nutricao") },
-    { id: "p2", name: "Enf. André Mello", specialty: "Enfermeiro", areaId: "ar2", color: "oklch(0.62 0.16 250)", slug: "andre-mello", anamnesisTemplate: defaultTemplate("enfermagem") },
-    { id: "p3", name: "Dra. Lívia Souza", specialty: "Psicóloga", areaId: "ar3", color: "oklch(0.6 0.18 285)", slug: "livia-souza", anamnesisTemplate: defaultTemplate("psicologia") },
-  ];
-
-  patients: Patient[] = [
-    {
-      id: "pt1",
-      name: "Beatriz Almeida",
-      phone: "(11) 98765-4321",
-      birthDate: "1992-03-12",
-      email: "beatriz@email.com",
-      professionalId: "p1",
-      isContributor: true,
-      contributionAmount: CONTRIBUTION_AMOUNT,
-      lgptConsent: true,
-      personal: {
-        cpf: "123.456.789-00",
-        cep: "80010-000",
-        city: "Curitiba",
-        state: "PR",
-        profession: "Designer",
-      },
-      health: {
-        diagnosisYear: "2018",
-        diabetesType: "tipo1",
-        medications: "Insulina basal e bolus",
-        howKnewAssociation: "Indicação médica",
-        conditions: { ...EMPTY_CONDITIONS, insulina: true, aparelhoGlicemia: true },
-      },
-      contributions: [
-        { id: "c1", date: "2025-03-05", amount: CONTRIBUTION_AMOUNT },
-        { id: "c2", date: "2025-04-05", amount: CONTRIBUTION_AMOUNT },
-      ],
-      notes: [
-        { id: "n1", date: "2025-03-10", professionalId: "p1", areaId: "ar1", content: "Iniciou plano alimentar low-carb. Meta: -4kg em 60 dias." },
-      ],
-      areaAnamneses: [],
-      exams: [
-        { id: "ex1", name: "Hemograma_completo.pdf", sizeKb: 420, uploadedAt: "2025-03-08" },
-      ],
-    },
-    {
-      id: "pt2",
-      name: "Carlos Henrique Lima",
-      phone: "(11) 91234-5678",
-      birthDate: "1985-07-22",
-      professionalId: "p2",
-      isContributor: false,
-      lgptConsent: true,
-      health: {
-        diabetesType: "tipo2",
-        diagnosisYear: "2020",
-        conditions: { ...EMPTY_CONDITIONS, hipertensao: true, colesterol: true },
-      },
-      contributions: [],
-      notes: [],
-      areaAnamneses: [],
-      exams: [],
-    },
-    {
-      id: "pt3",
-      name: "Fernanda Reis",
-      phone: "(21) 99876-5432",
-      birthDate: "1998-11-05",
-      professionalId: "p3",
-      isContributor: true,
-      contributionAmount: CONTRIBUTION_AMOUNT,
-      lgptConsent: true,
-      contributions: [{ id: "c3", date: "2025-04-02", amount: CONTRIBUTION_AMOUNT }],
-      health: {
-        diabetesType: "tipo1",
-        conditions: { ...EMPTY_CONDITIONS, insulina: true },
-      },
-      notes: [
-        { id: "n2", date: "2025-02-20", professionalId: "p3", areaId: "ar3", content: "Sessão inicial — ansiedade alimentar." },
-      ],
-      areaAnamneses: [],
-      exams: [],
-    },
-  ];
-
+  areas: Area[] = [];
+  professionals: Professional[] = [];
+  patients: Patient[] = [];
   appointments: Appointment[] = [];
   scheduleBlocks: ScheduleBlock[] = [];
-
-  finance: FinanceEntry[] = [
-    { id: "f1", date: "2025-04-05", description: "Contribuição — Beatriz Almeida", type: "contribuicao", amount: CONTRIBUTION_AMOUNT },
-    { id: "f2", date: "2025-04-02", description: "Contribuição — Fernanda Reis", type: "contribuicao", amount: CONTRIBUTION_AMOUNT },
-    { id: "f3", date: "2025-03-05", description: "Contribuição — Beatriz Almeida", type: "contribuicao", amount: CONTRIBUTION_AMOUNT },
-  ];
+  finance: FinanceEntry[] = [];
 
   whatsappLogs: WhatsAppLog[] = [];
   reception: ReceptionEntry[] = [];
 
   private listeners = new Set<Listener>();
 
-  constructor() {
-    this.seedAppointments();
-    // Por padrão, a sessão "atua como" o primeiro profissional (modo demo).
-    this.activeProfessionalId = this.professionals[0]?.id ?? null;
-  }
-
-  private seedAppointments() {
-    const today = startOfDay(new Date());
-    const seed: Appointment[] = [
-      { id: "a1", patientId: "pt1", professionalId: "p1", date: addHours(today, 9).toISOString(), durationMin: 45, status: "confirmado", modality: "presencial" },
-      { id: "a2", patientId: "pt2", professionalId: "p2", date: addHours(today, 10).toISOString(), durationMin: 30, status: "pendente", modality: "presencial" },
-      { id: "a3", patientId: "pt3", professionalId: "p3", date: addHours(today, 14).toISOString(), durationMin: 50, status: "confirmado", modality: "online" },
-      { id: "a4", patientId: "pt1", professionalId: "p1", date: addHours(addDays(today, 1), 11).toISOString(), durationMin: 45, status: "pendente", modality: "presencial" },
-      { id: "a5", patientId: "pt2", professionalId: "p1", date: addHours(addDays(today, 2), 15).toISOString(), durationMin: 45, status: "confirmado", modality: "presencial" },
-    ];
-    this.appointments = seed;
-  }
+  constructor() {}
 
   subscribe(l: Listener) {
     this.listeners.add(l);

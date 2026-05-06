@@ -1,8 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import { PortalFlow } from "@/components/portal-flow";
 import { useStore } from "@/hooks/use-store";
 import { Card } from "@/components/ui/card";
 import { AlertTriangle } from "lucide-react";
+import { hydratePortalBySlug } from "@/lib/supabase-sync";
 
 export const Route = createFileRoute("/portal/$slug/$pro")({
   component: PortalProfessional,
@@ -11,7 +13,22 @@ export const Route = createFileRoute("/portal/$slug/$pro")({
 function PortalProfessional() {
   const { slug, pro } = Route.useParams();
   const store = useStore();
-  const professional = store.findProfessionalBySlug(pro);
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    hydratePortalBySlug(slug).finally(() => setReady(true));
+  }, [slug]);
+
+  if (!ready) return null;
+
+  // Match by slug exactly, then case-insensitive name fallback.
+  const target = pro.toLowerCase();
+  const professional =
+    store.professionals.find((p) => p.slug === target) ??
+    store.professionals.find(
+      (p) => p.slug?.toLowerCase() === target ||
+        p.name.toLowerCase().replace(/\s+/g, "-") === target,
+    );
 
   if (!professional) {
     return (
