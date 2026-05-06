@@ -238,7 +238,7 @@ export function syncUpdatePatient(id: string, patch: Partial<Patient>) {
   if (Object.keys(row).length === 0) return;
   void supabase
     .from("patients")
-    .update(row)
+    .update(row as never)
     .eq("id", id)
     .then(({ error }) => logErr("update patient", error));
 }
