@@ -13,6 +13,31 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select";
 import { ContributionBadge } from "@/components/financial-badge";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
@@ -25,7 +50,7 @@ import {
   type AnamnesisField,
   type AreaAnamnesis,
 } from "@/lib/mock-store";
-import { FileText, History, Phone, CalendarDays, Save } from "lucide-react";
+import { FileText, History, Phone, CalendarDays, Save, Pencil, Trash2 } from "lucide-react";
 
 export function PatientSheet({
   patientId,
@@ -47,13 +72,49 @@ export function PatientSheet({
         .sort((a, b) => +new Date(b.date) - +new Date(a.date))
     : [];
 
+  const [editOpen, setEditOpen] = useState(false);
+
   return (
     <Sheet open={!!patientId} onOpenChange={(v) => !v && onClose()}>
       <SheetContent className="w-full sm:max-w-2xl overflow-y-auto">
         {patient && (
           <>
             <SheetHeader className="space-y-2">
-              <SheetTitle className="text-xl">{patient.name}</SheetTitle>
+              <div className="flex items-start justify-between gap-2">
+                <SheetTitle className="text-xl">{patient.name}</SheetTitle>
+                <div className="flex items-center gap-1.5">
+                  <Button size="sm" variant="outline" onClick={() => setEditOpen(true)}>
+                    <Pencil className="h-3.5 w-3.5 mr-1" /> Editar
+                  </Button>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button size="sm" variant="outline" className="text-destructive hover:text-destructive">
+                        <Trash2 className="h-3.5 w-3.5 mr-1" /> Remover
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Remover paciente?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Esta ação remove {patient.name} e todos os agendamentos vinculados. Não pode ser desfeita.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={() => {
+                            store.removePatient(patient.id);
+                            toast.success("Paciente removido");
+                            onClose();
+                          }}
+                        >
+                          Remover
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
+              </div>
               <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
                 <span className="flex items-center gap-1">
                   <Phone className="h-3 w-3" /> {patient.phone}
@@ -149,10 +210,121 @@ export function PatientSheet({
                 )}
               </TabsContent>
             </Tabs>
+            <EditPatientDialog
+              open={editOpen}
+              onOpenChange={setEditOpen}
+              patientId={patient.id}
+            />
           </>
         )}
       </SheetContent>
     </Sheet>
+  );
+}
+
+function EditPatientDialog({
+  open, onOpenChange, patientId,
+}: { open: boolean; onOpenChange: (v: boolean) => void; patientId: string }) {
+  const store = useStore();
+  const pt = store.patients.find((p) => p.id === patientId);
+  const [name, setName] = useState(pt?.name ?? "");
+  const [phone, setPhone] = useState(pt?.phone ?? "");
+  const [email, setEmail] = useState(pt?.email ?? "");
+  const [birthDate, setBirthDate] = useState(pt?.birthDate ?? "");
+  const [professionalId, setProfessionalId] = useState<string>(pt?.professionalId ?? "none");
+  const [isContributor, setIsContributor] = useState(!!pt?.isContributor);
+
+  if (!pt) return null;
+
+  function submit(e: React.FormEvent) {
+    e.preventDefault();
+    store.updatePatient(patientId, {
+      name,
+      phone,
+      email: email || undefined,
+      birthDate,
+      professionalId: professionalId === "none" ? undefined : professionalId,
+      isContributor,
+    });
+    toast.success("Paciente atualizado");
+    onOpenChange(false);
+  }
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(v) => {
+        if (v && pt) {
+          setName(pt.name);
+          setPhone(pt.phone);
+          setEmail(pt.email ?? "");
+          setBirthDate(pt.birthDate);
+          setProfessionalId(pt.professionalId ?? "none");
+          setIsContributor(!!pt.isContributor);
+        }
+        onOpenChange(v);
+      }}
+    >
+      <DialogContent className="max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Editar paciente</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={submit} className="space-y-4">
+          <div className="space-y-1.5">
+            <Label>Nome completo</Label>
+            <Input value={name} onChange={(e) => setName(e.target.value)} required />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label>Telefone</Label>
+              <Input value={phone} onChange={(e) => setPhone(e.target.value)} required />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Data de nascimento</Label>
+              <Input
+                type="date"
+                value={birthDate}
+                onChange={(e) => setBirthDate(e.target.value)}
+                required
+              />
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label>E-mail (opcional)</Label>
+            <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Profissional responsável</Label>
+            <Select value={professionalId} onValueChange={setProfessionalId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Nenhum</SelectItem>
+                {store.professionals.map((p) => {
+                  const area = store.areas.find((a) => a.id === p.areaId);
+                  return (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.name} — {area?.name ?? p.specialty}
+                    </SelectItem>
+                  );
+                })}
+              </SelectContent>
+            </Select>
+          </div>
+          <label className="flex items-center gap-2 rounded-lg border p-3 cursor-pointer hover:bg-muted/30">
+            <Checkbox checked={isContributor} onCheckedChange={(v) => setIsContributor(!!v)} />
+            <span className="text-sm">Paciente contribuinte</span>
+          </label>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              Cancelar
+            </Button>
+            <Button type="submit" className="gradient-primary">Salvar</Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
 

@@ -399,6 +399,13 @@ class Store {
     sync.syncUpdatePatient(id, patch);
     this.emit();
   }
+  removePatient(id: string) {
+    this.patients = this.patients.filter((p) => p.id !== id);
+    this.appointments = this.appointments.filter((a) => a.patientId !== id);
+    sync.syncDeletePatient(id);
+    this.emit();
+    return true;
+  }
   addPatientNote(patientId: string, professionalId: string, areaId: string, content: string) {
     const pt = this.patients.find((x) => x.id === patientId);
     if (!pt) return;
