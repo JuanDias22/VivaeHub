@@ -88,6 +88,17 @@ export function PortalFlow({
   const [areaId, setAreaId] = useState("");
   const [proId, setProId] = useState(fixedProfessionalId ?? "");
 
+  // Sincroniza profissional pré-selecionado quando os dados do portal
+  // hidratarem após a montagem (caso a URL traga /portal/$slug/$pro).
+  useEffect(() => {
+    if (fixedProfessionalId && fixedProfessionalId !== proId) {
+      setProId(fixedProfessionalId);
+      const pro = store.professionals.find((p) => p.id === fixedProfessionalId);
+      if (pro) setAreaId(pro.areaId);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fixedProfessionalId, store.professionals.length]);
+
   // Cadastro APAD — pessoais
   const [name, setName] = useState("");
   const [rg, setRg] = useState("");
