@@ -18,6 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
+import { formatDateOnly } from "@/lib/date-utils";
 import {
   CONDITION_LABEL,
   DIABETES_TYPE_LABEL,
@@ -60,7 +61,7 @@ export function PatientSheet({
                 <span>·</span>
                 <span className="flex items-center gap-1">
                   <CalendarDays className="h-3 w-3" />
-                  {format(new Date(patient.birthDate), "dd/MM/yyyy")}
+                  {formatDateOnly(patient.birthDate, "dd/MM/yyyy")}
                 </span>
               </div>
               <div className="flex flex-wrap items-center gap-2">
@@ -77,7 +78,7 @@ export function PatientSheet({
                 )}
                 {lastContrib && (
                   <span className="text-xs text-muted-foreground">
-                    · Últ. contrib.: {format(new Date(lastContrib.date), "dd/MM/yyyy")}
+                    · Últ. contrib.: {formatDateOnly(lastContrib.date, "dd/MM/yyyy")}
                   </span>
                 )}
               </div>
