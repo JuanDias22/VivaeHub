@@ -595,7 +595,6 @@ export type Database = {
     }
     Functions: {
       current_clinic_id: { Args: never; Returns: string }
-      unaccent: { Args: { "": string }; Returns: string }
     }
     Enums: {
       [_ in never]: never
