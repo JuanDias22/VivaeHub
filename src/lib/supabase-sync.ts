@@ -20,14 +20,23 @@ import {
   type ContributionEntry,
 } from "./mock-store";
 
+let publicSyncBroadcast: BroadcastChannel | null = null;
+
 let currentUserId: string | null = null;
 let currentClinicId: string | null = null;
+const pendingPatientWrites = new Map<string, Promise<void>>();
 
 export function getClinicId() {
   return currentClinicId;
 }
 export function getUserId() {
   return currentUserId;
+}
+
+function broadcastPublicMutation(kind: "appointment" | "patient") {
+  if (typeof window === "undefined") return;
+  publicSyncBroadcast ??= new BroadcastChannel("vivaehub-sync");
+  publicSyncBroadcast.postMessage({ kind, clinicId: currentClinicId, at: Date.now() });
 }
 
 function logErr(label: string, err: unknown) {
@@ -186,6 +195,7 @@ export async function hydrateFromSupabase(): Promise<boolean> {
   store.activeProfessionalId = store.professionals[0]?.id ?? null;
   store.emit();
   subscribeRealtime();
+  listenForPublicSync();
   return true;
 }
 
@@ -193,6 +203,18 @@ export function clearSyncSession() {
   currentUserId = null;
   currentClinicId = null;
   unsubscribeRealtime();
+}
+
+export function listenForPublicSync() {
+  if (typeof window === "undefined") return;
+  publicSyncBroadcast ??= new BroadcastChannel("vivaehub-sync");
+  publicSyncBroadcast.onmessage = (event) => {
+    const msg = event.data as { kind?: string; clinicId?: string } | null;
+    if (!msg?.clinicId || msg.clinicId !== currentClinicId) return;
+    if (msg.kind === "appointment") {
+      void refetchPatientsAndAppointments();
+    }
+  };
 }
 
 /** Refetch das consultas/agendamentos da clínica logada. Usado logo após
@@ -210,6 +232,50 @@ export async function refetchAppointments(): Promise<void> {
     return;
   }
   store.appointments = data.map((a) => ({
+    id: a.id,
+    patientId: a.patient_id,
+    professionalId: a.professional_id,
+    date: a.date,
+    durationMin: a.duration_min,
+    status: a.status as Appointment["status"],
+    modality: (a.modality as Appointment["modality"]) ?? undefined,
+    notes: a.notes ?? undefined,
+  }));
+  store.emit();
+}
+
+export async function refetchPatientsAndAppointments(): Promise<void> {
+  const cid = currentClinicId;
+  if (!cid) return;
+  const [patientsRes, apptsRes] = await Promise.all([
+    supabase.from("patients").select("*").eq("clinic_id", cid),
+    supabase.from("appointments").select("*").eq("clinic_id", cid),
+  ]);
+  if (patientsRes.error || apptsRes.error || !patientsRes.data || !apptsRes.data) {
+    logErr("refetch patients/appointments", patientsRes.error ?? apptsRes.error);
+    return;
+  }
+  store.patients = patientsRes.data.map((p) => {
+    const existing = store.patients.find((x) => x.id === p.id);
+    return {
+      id: p.id,
+      name: p.name,
+      phone: p.phone ?? "",
+      birthDate: p.birth_date ?? "",
+      email: p.email ?? undefined,
+      professionalId: p.professional_id ?? undefined,
+      isContributor: p.is_contributor,
+      contributionAmount: p.contribution_amount != null ? Number(p.contribution_amount) : undefined,
+      lgptConsent: p.lgpt_consent,
+      personal: (p.personal as Patient["personal"]) ?? undefined,
+      health: (p.health as Patient["health"]) ?? undefined,
+      notes: existing?.notes ?? [],
+      areaAnamneses: existing?.areaAnamneses ?? [],
+      exams: existing?.exams ?? [],
+      contributions: existing?.contributions ?? [],
+    };
+  });
+  store.appointments = apptsRes.data.map((a) => ({
     id: a.id,
     patientId: a.patient_id,
     professionalId: a.professional_id,
@@ -278,23 +344,30 @@ function clinic(): string | null {
 export function syncInsertPatient(p: Patient) {
   const cid = clinic();
   if (!cid) return;
-  void supabase
-    .from("patients")
-    .insert({
-      id: p.id,
-      clinic_id: cid,
-      name: p.name,
-      phone: p.phone,
-      birth_date: p.birthDate || null,
-      email: p.email ?? null,
-      professional_id: p.professionalId ?? null,
-      is_contributor: p.isContributor,
-      contribution_amount: p.contributionAmount ?? null,
-      lgpt_consent: !!p.lgptConsent,
-      personal: (p.personal as never) ?? null,
-      health: (p.health as never) ?? null,
-    })
-    .then(({ error }) => logErr("insert patient", error));
+  const write = Promise.resolve(
+    supabase
+      .from("patients")
+      .insert({
+        id: p.id,
+        clinic_id: cid,
+        name: p.name,
+        phone: p.phone,
+        birth_date: p.birthDate || null,
+        email: p.email ?? null,
+        professional_id: p.professionalId ?? null,
+        is_contributor: p.isContributor,
+        contribution_amount: p.contributionAmount ?? null,
+        lgpt_consent: !!p.lgptConsent,
+        personal: (p.personal as never) ?? null,
+        health: (p.health as never) ?? null,
+      })
+      .then(({ error }) => {
+        logErr("insert patient", error);
+        broadcastPublicMutation("patient");
+      }),
+  ).finally(() => pendingPatientWrites.delete(p.id));
+  pendingPatientWrites.set(p.id, write);
+  void write;
 }
 
 export function syncUpdatePatient(id: string, patch: Partial<Patient>) {
@@ -452,7 +525,7 @@ export function syncDeleteArea(id: string) {
 export function syncInsertAppointment(a: Appointment) {
   const cid = clinic();
   if (!cid) return;
-  void supabase
+  const insert = () => supabase
     .from("appointments")
     .insert({
       id: a.id,
@@ -470,8 +543,10 @@ export function syncInsertAppointment(a: Appointment) {
       // Refetch agenda/consultas imediatamente após confirmar agendamento,
       // garantindo que todas as telas reflitam o estado real do banco
       // (e não apenas o estado local otimista).
-      void refetchAppointments();
+      if (currentUserId) void refetchPatientsAndAppointments();
+      broadcastPublicMutation("appointment");
     });
+  void (pendingPatientWrites.get(a.patientId) ?? Promise.resolve()).then(insert);
 }
 export function syncUpdateAppointment(id: string, patch: Partial<Appointment>) {
   const row: Record<string, unknown> = {};

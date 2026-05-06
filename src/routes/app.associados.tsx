@@ -32,6 +32,7 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { CONTRIBUTION_AMOUNT, type Patient } from "@/lib/mock-store";
 import { ContributionBadge } from "@/components/financial-badge";
+import { formatDateOnly } from "@/lib/date-utils";
 
 export const Route = createFileRoute("/app/associados")({
   component: Contribuicoes,
@@ -148,19 +149,32 @@ function PatientsContribTable({ patients }: { patients: Patient[] }) {
                       : "—"}
                   </td>
                   <td className="px-4 py-3 hidden md:table-cell text-muted-foreground tabular-nums">
-                    {last ? `${format(new Date(last.date), "dd/MM/yyyy")} · R$ ${last.amount.toFixed(2)}` : "—"}
+                    {last ? `${formatDateOnly(last.date, "dd/MM/yyyy")} · R$ ${last.amount.toFixed(2)}` : "—"}
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => {
-                        store.registerContribution(p.id);
-                        toast.success(`Contribuição de ${p.name} registrada`);
-                      }}
-                    >
-                      Registrar contribuição
-                    </Button>
+                    <div className="flex justify-end gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          const next = !p.isContributor;
+                          store.setContributorStatus(p.id, next);
+                          toast.success(next ? "Paciente marcado como contribuinte" : "Paciente removido dos contribuintes");
+                        }}
+                      >
+                        Editar
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          store.registerContribution(p.id);
+                          toast.success(`Contribuição de ${p.name} registrada`);
+                        }}
+                      >
+                        Registrar contribuição
+                      </Button>
+                    </div>
                   </td>
                 </tr>
               );
