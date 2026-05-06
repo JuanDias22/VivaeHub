@@ -195,6 +195,33 @@ export function clearSyncSession() {
   unsubscribeRealtime();
 }
 
+/** Refetch das consultas/agendamentos da clínica logada. Usado logo após
+ * confirmar um agendamento para garantir consistência total entre estado
+ * local e Supabase (independente do canal realtime). */
+export async function refetchAppointments(): Promise<void> {
+  const cid = currentClinicId;
+  if (!cid) return;
+  const { data, error } = await supabase
+    .from("appointments")
+    .select("*")
+    .eq("clinic_id", cid);
+  if (error || !data) {
+    logErr("refetch appointments", error);
+    return;
+  }
+  store.appointments = data.map((a) => ({
+    id: a.id,
+    patientId: a.patient_id,
+    professionalId: a.professional_id,
+    date: a.date,
+    durationMin: a.duration_min,
+    status: a.status as Appointment["status"],
+    modality: (a.modality as Appointment["modality"]) ?? undefined,
+    notes: a.notes ?? undefined,
+  }));
+  store.emit();
+}
+
 /** Public hydration for the patient portal (anonymous). Loads clinic, areas,
  * professionals and schedule blocks by clinic slug. Does not require auth. */
 export async function hydratePortalBySlug(slug: string): Promise<boolean> {
@@ -438,7 +465,13 @@ export function syncInsertAppointment(a: Appointment) {
       modality: a.modality ?? null,
       notes: a.notes ?? null,
     })
-    .then(({ error }) => logErr("insert appointment", error));
+    .then(({ error }) => {
+      logErr("insert appointment", error);
+      // Refetch agenda/consultas imediatamente após confirmar agendamento,
+      // garantindo que todas as telas reflitam o estado real do banco
+      // (e não apenas o estado local otimista).
+      void refetchAppointments();
+    });
 }
 export function syncUpdateAppointment(id: string, patch: Partial<Appointment>) {
   const row: Record<string, unknown> = {};
@@ -452,7 +485,10 @@ export function syncUpdateAppointment(id: string, patch: Partial<Appointment>) {
     .from("appointments")
     .update(row as never)
     .eq("id", id)
-    .then(({ error }) => logErr("update appointment", error));
+    .then(({ error }) => {
+      logErr("update appointment", error);
+      void refetchAppointments();
+    });
 }
 
 export function syncInsertBlock(b: ScheduleBlock) {
