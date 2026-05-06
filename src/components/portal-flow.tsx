@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useStore } from "@/hooks/use-store";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
