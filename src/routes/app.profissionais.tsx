@@ -22,10 +22,12 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select";
-import { Plus, Trash2, Tag, Link2, Copy, CalendarOff } from "lucide-react";
+import { Plus, Trash2, Tag, Link2, Copy, CalendarOff, ClipboardList } from "lucide-react";
 import { toast } from "sonner";
 import { isSameDay } from "date-fns";
 import { BlockScheduleDialog } from "@/components/block-schedule-dialog";
+import { Textarea } from "@/components/ui/textarea";
+import type { AnamnesisField } from "@/lib/mock-store";
 
 export const Route = createFileRoute("/app/profissionais")({
   component: Profissionais,
@@ -139,11 +141,85 @@ function Profissionais() {
                 </Button>
               }
             />
+            <AnamnesisTemplateDialog professionalId={p.id} />
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-full mt-2 text-destructive hover:text-destructive"
+              onClick={() => {
+                if (!confirm(`Excluir profissional "${p.name}"?`)) return;
+                const ok = store.removeProfessional(p.id);
+                if (!ok) toast.error("Não é possível excluir: existem consultas vinculadas.");
+                else toast.success("Profissional excluído");
+              }}
+            >
+              <Trash2 className="h-3.5 w-3.5 mr-1" /> Excluir profissional
+            </Button>
             </Card>
           );
         })}
       </div>
     </div>
+  );
+}
+
+function AnamnesisTemplateDialog({ professionalId }: { professionalId: string }) {
+  const store = useStore();
+  const pro = store.professionals.find((p) => p.id === professionalId);
+  const [open, setOpen] = useState(false);
+  const [text, setText] = useState("");
+
+  function load() {
+    const fields = pro?.anamnesisTemplate?.fields ?? [];
+    setText(fields.map((f) => f.label).join("\n"));
+  }
+
+  function save() {
+    const lines = text.split("\n").map((l) => l.trim()).filter(Boolean);
+    const fields: AnamnesisField[] = lines.map((label, i) => ({
+      id: `f${i + 1}`,
+      type: "textarea",
+      label,
+    }));
+    store.setProfessionalTemplate(professionalId, fields);
+    toast.success("Modelo de anamnese salvo");
+    setOpen(false);
+  }
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(v) => {
+        setOpen(v);
+        if (v) load();
+      }}
+    >
+      <DialogTrigger asChild>
+        <Button variant="outline" size="sm" className="w-full mt-2">
+          <ClipboardList className="h-3.5 w-3.5 mr-1" /> Modelo de anamnese
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Modelo de anamnese — {pro?.name}</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-2">
+          <Label>Perguntas (uma por linha)</Label>
+          <Textarea
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            rows={10}
+            placeholder={"Ex.:\nQueixa principal\nMedicamentos em uso\nObservações"}
+          />
+          <p className="text-xs text-muted-foreground">
+            Cada linha vira uma pergunta da anamnese desta área.
+          </p>
+        </div>
+        <DialogFooter>
+          <Button onClick={save} className="gradient-primary">Salvar modelo</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
