@@ -203,6 +203,18 @@ export function clearSyncSession() {
   unsubscribeRealtime();
 }
 
+export function listenForPublicSync() {
+  if (typeof window === "undefined" || publicSyncBroadcast) return;
+  publicSyncBroadcast = new BroadcastChannel("vivaehub-sync");
+  publicSyncBroadcast.onmessage = (event) => {
+    const msg = event.data as { kind?: string; clinicId?: string } | null;
+    if (!msg?.clinicId || msg.clinicId !== currentClinicId) return;
+    if (msg.kind === "appointment") {
+      void refetchPatientsAndAppointments();
+    }
+  };
+}
+
 /** Refetch das consultas/agendamentos da clínica logada. Usado logo após
  * confirmar um agendamento para garantir consistência total entre estado
  * local e Supabase (independente do canal realtime). */
@@ -218,6 +230,50 @@ export async function refetchAppointments(): Promise<void> {
     return;
   }
   store.appointments = data.map((a) => ({
+    id: a.id,
+    patientId: a.patient_id,
+    professionalId: a.professional_id,
+    date: a.date,
+    durationMin: a.duration_min,
+    status: a.status as Appointment["status"],
+    modality: (a.modality as Appointment["modality"]) ?? undefined,
+    notes: a.notes ?? undefined,
+  }));
+  store.emit();
+}
+
+export async function refetchPatientsAndAppointments(): Promise<void> {
+  const cid = currentClinicId;
+  if (!cid) return;
+  const [patientsRes, apptsRes] = await Promise.all([
+    supabase.from("patients").select("*").eq("clinic_id", cid),
+    supabase.from("appointments").select("*").eq("clinic_id", cid),
+  ]);
+  if (patientsRes.error || apptsRes.error || !patientsRes.data || !apptsRes.data) {
+    logErr("refetch patients/appointments", patientsRes.error ?? apptsRes.error);
+    return;
+  }
+  store.patients = patientsRes.data.map((p) => {
+    const existing = store.patients.find((x) => x.id === p.id);
+    return {
+      id: p.id,
+      name: p.name,
+      phone: p.phone ?? "",
+      birthDate: p.birth_date ?? "",
+      email: p.email ?? undefined,
+      professionalId: p.professional_id ?? undefined,
+      isContributor: p.is_contributor,
+      contributionAmount: p.contribution_amount != null ? Number(p.contribution_amount) : undefined,
+      lgptConsent: p.lgpt_consent,
+      personal: (p.personal as Patient["personal"]) ?? undefined,
+      health: (p.health as Patient["health"]) ?? undefined,
+      notes: existing?.notes ?? [],
+      areaAnamneses: existing?.areaAnamneses ?? [],
+      exams: existing?.exams ?? [],
+      contributions: existing?.contributions ?? [],
+    };
+  });
+  store.appointments = apptsRes.data.map((a) => ({
     id: a.id,
     patientId: a.patient_id,
     professionalId: a.professional_id,
