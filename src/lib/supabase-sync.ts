@@ -543,7 +543,7 @@ export function syncInsertAppointment(a: Appointment) {
       // Refetch agenda/consultas imediatamente após confirmar agendamento,
       // garantindo que todas as telas reflitam o estado real do banco
       // (e não apenas o estado local otimista).
-      void refetchAppointments();
+      if (currentUserId) void refetchPatientsAndAppointments();
       broadcastPublicMutation("appointment");
     });
   void (pendingPatientWrites.get(a.patientId) ?? Promise.resolve()).then(insert);
