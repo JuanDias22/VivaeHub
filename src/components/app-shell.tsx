@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { useStore } from "@/hooks/use-store";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
 
 type NavItem = {
   to:
@@ -95,8 +96,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <div className="border-t border-sidebar-border p-3">
           <button
             onClick={() => {
-              store.logout();
-              window.location.href = "/login";
+              void supabase.auth.signOut().finally(() => {
+                store.logout();
+                window.location.href = "/login";
+              });
             }}
             className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-sidebar-foreground/75 hover:bg-sidebar-accent/60 transition-smooth"
           >

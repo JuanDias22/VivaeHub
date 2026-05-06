@@ -1,5 +1,9 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
+import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { lovable } from "@/integrations/lovable";
+import { hydrateFromSupabase } from "@/lib/supabase-sync";
 import {
   Activity,
   ArrowRight,
@@ -11,7 +15,6 @@ import {
   Stethoscope,
   Sparkles,
 } from "lucide-react";
-import { store } from "@/lib/mock-store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -28,14 +31,51 @@ export const Route = createFileRoute("/login")({
 
 function LoginPage() {
   const nav = useNavigate();
-  const [email, setEmail] = useState("demo@vivaehub.com");
-  const [password, setPassword] = useState("demo123");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  function submit(e: React.FormEvent) {
+  async function submit(e: React.FormEvent) {
     e.preventDefault();
-    store.login(email, password);
+    setLoading(true);
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) {
+      setLoading(false);
+      toast.error(error.message);
+      return;
+    }
+    const ok = await hydrateFromSupabase();
+    setLoading(false);
+    if (!ok) {
+      toast.error("Não foi possível carregar sua clínica.");
+      return;
+    }
     nav({ to: "/app" });
   }
+
+  async function googleLogin() {
+    const result = await lovable.auth.signInWithOAuth("google", {
+      redirect_uri: window.location.origin + "/login",
+    });
+    if (result.error) {
+      toast.error("Falha ao entrar com Google.");
+      return;
+    }
+    if (result.redirected) return;
+    const ok = await hydrateFromSupabase();
+    if (ok) nav({ to: "/app" });
+  }
+
+  // After OAuth callback hydrate and redirect.
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase.auth.getSession();
+      if (data.session) {
+        const ok = await hydrateFromSupabase();
+        if (ok) nav({ to: "/app" });
+      }
+    })();
+  }, [nav]);
 
   return (
     <div className="min-h-screen grid lg:grid-cols-[1.1fr_1fr] bg-background">
@@ -98,11 +138,23 @@ function LoginPage() {
               </div>
               <Button
                 type="submit"
+                disabled={loading}
                 className="w-full h-11 rounded-xl gradient-primary shadow-elegant transition-smooth hover:shadow-glow hover:scale-[1.01]"
               >
-                Entrar <ArrowRight className="ml-1 h-4 w-4" />
+                {loading ? "Entrando..." : "Entrar"} <ArrowRight className="ml-1 h-4 w-4" />
               </Button>
             </form>
+
+            <div className="mt-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={googleLogin}
+                className="w-full h-11 rounded-xl"
+              >
+                Entrar com Google
+              </Button>
+            </div>
 
             <div className="mt-6 text-center text-sm text-muted-foreground">
               Não tem conta?{" "}
@@ -112,9 +164,6 @@ function LoginPage() {
             </div>
           </div>
 
-          <div className="mt-4 text-center text-xs text-muted-foreground">
-            Demo: qualquer e-mail e senha funcionam.
-          </div>
         </div>
       </div>
     </div>

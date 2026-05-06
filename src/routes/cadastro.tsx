@@ -1,7 +1,10 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { Activity } from "lucide-react";
-import { store } from "@/lib/mock-store";
+import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { lovable } from "@/integrations/lovable";
+import { hydrateFromSupabase } from "@/lib/supabase-sync";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,11 +24,44 @@ function SignupPage() {
   const [clinicName, setClinicName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  function submit(e: React.FormEvent) {
+  async function submit(e: React.FormEvent) {
     e.preventDefault();
-    store.signup(clinicName, email);
-    nav({ to: "/app" });
+    setLoading(true);
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo: window.location.origin + "/login",
+        data: { clinic_name: clinicName },
+      },
+    });
+    if (error) {
+      setLoading(false);
+      toast.error(error.message);
+      return;
+    }
+    // Try immediate session (auto-confirm or already-confirmed)
+    const { data: sess } = await supabase.auth.getSession();
+    if (sess.session) {
+      const ok = await hydrateFromSupabase();
+      setLoading(false);
+      if (ok) {
+        nav({ to: "/app" });
+        return;
+      }
+    }
+    setLoading(false);
+    toast.success("Conta criada! Verifique seu e-mail para confirmar e depois entrar.");
+    nav({ to: "/login" });
+  }
+
+  async function googleSignup() {
+    const result = await lovable.auth.signInWithOAuth("google", {
+      redirect_uri: window.location.origin + "/login",
+    });
+    if (result.error) toast.error("Falha ao entrar com Google.");
   }
 
   return (
@@ -75,10 +111,16 @@ function SignupPage() {
               minLength={6}
             />
           </div>
-          <Button type="submit" className="w-full gradient-primary shadow-soft">
-            Criar conta
+          <Button type="submit" disabled={loading} className="w-full gradient-primary shadow-soft">
+            {loading ? "Criando..." : "Criar conta"}
           </Button>
         </form>
+
+        <div className="mt-3">
+          <Button type="button" variant="outline" onClick={googleSignup} className="w-full">
+            Continuar com Google
+          </Button>
+        </div>
 
         <div className="mt-6 text-center text-sm text-muted-foreground">
           Já tem conta?{" "}

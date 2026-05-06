@@ -3,6 +3,7 @@
 // Modelo: todo paciente é associado automaticamente; contribuição é fixa de R$50/mês.
 
 import { addDays, addHours, format, startOfDay } from "date-fns";
+import * as sync from "./supabase-sync";
 
 export type Area = {
   id: string;
@@ -431,7 +432,7 @@ class Store {
     this.listeners.add(l);
     return () => this.listeners.delete(l);
   }
-  private emit() {
+  emit() {
     this.listeners.forEach((l) => l());
   }
 
@@ -449,6 +450,7 @@ class Store {
   }
   logout() {
     this.authed = false;
+    sync.clearSyncSession();
     this.emit();
   }
   setActiveProfessional(id: string | null) {
@@ -461,17 +463,20 @@ class Store {
 
   // --- Areas ---
   addArea(name: string) {
-    this.areas.push({
+    const a = {
       id: crypto.randomUUID(),
       name,
       color: PALETTE[this.areas.length % PALETTE.length],
       key: slugify(name),
-    });
+    };
+    this.areas.push(a);
+    sync.syncInsertArea(a);
     this.emit();
   }
   removeArea(id: string) {
     if (this.professionals.some((p) => p.areaId === id)) return false;
     this.areas = this.areas.filter((a) => a.id !== id);
+    sync.syncDeleteArea(id);
     this.emit();
     return true;
   }
@@ -479,14 +484,16 @@ class Store {
   // --- Patients ---
   addPatient(p: Omit<Patient, "id" | "notes" | "exams" | "contributions" | "areaAnamneses">) {
     const id = crypto.randomUUID();
-    this.patients.push({
+    const patient: Patient = {
       ...p,
       id,
       notes: [],
       exams: [],
       contributions: [],
       areaAnamneses: [],
-    });
+    };
+    this.patients.push(patient);
+    sync.syncInsertPatient(patient);
     if (p.isContributor) {
       this.registerContribution(id);
     }
@@ -497,18 +504,21 @@ class Store {
     const pt = this.patients.find((x) => x.id === id);
     if (!pt) return;
     Object.assign(pt, patch);
+    sync.syncUpdatePatient(id, patch);
     this.emit();
   }
   addPatientNote(patientId: string, professionalId: string, areaId: string, content: string) {
     const pt = this.patients.find((x) => x.id === patientId);
     if (!pt) return;
-    pt.notes.unshift({
+    const note = {
       id: crypto.randomUUID(),
       date: new Date().toISOString(),
       professionalId,
       areaId,
       content,
-    });
+    };
+    pt.notes.unshift(note);
+    sync.syncInsertNote(patientId, note);
     this.emit();
   }
   setAreaAnamnesis(patientId: string, anam: AreaAnamnesis) {
@@ -517,6 +527,7 @@ class Store {
     const existing = pt.areaAnamneses.findIndex((a) => a.areaId === anam.areaId);
     if (existing >= 0) pt.areaAnamneses[existing] = anam;
     else pt.areaAnamneses.push(anam);
+    sync.syncUpsertAnamnesis(patientId, anam);
     this.emit();
   }
   getAreaAnamnesis(patientId: string, areaId: string): AreaAnamnesis | undefined {
@@ -526,12 +537,14 @@ class Store {
   addPatientExam(patientId: string, name: string, sizeKb: number) {
     const pt = this.patients.find((x) => x.id === patientId);
     if (!pt) return;
-    pt.exams.unshift({
+    const exam = {
       id: crypto.randomUUID(),
       name,
       sizeKb,
       uploadedAt: new Date().toISOString(),
-    });
+    };
+    pt.exams.unshift(exam);
+    sync.syncInsertExam(patientId, exam);
     this.emit();
   }
 
@@ -547,18 +560,19 @@ class Store {
     const today = new Date().toISOString().slice(0, 10);
     pt.isContributor = true;
     pt.contributionAmount = CONTRIBUTION_AMOUNT;
-    pt.contributions.unshift({
-      id: crypto.randomUUID(),
-      date: today,
-      amount: CONTRIBUTION_AMOUNT,
-    });
-    this.finance.unshift({
+    const contrib = { id: crypto.randomUUID(), date: today, amount: CONTRIBUTION_AMOUNT };
+    pt.contributions.unshift(contrib);
+    const fin: FinanceEntry = {
       id: crypto.randomUUID(),
       date: today,
       description: `Contribuição — ${pt.name}`,
       type: "contribuicao",
       amount: CONTRIBUTION_AMOUNT,
-    });
+    };
+    this.finance.unshift(fin);
+    sync.syncMarkContributor(patientId, CONTRIBUTION_AMOUNT);
+    sync.syncInsertContribution(patientId, contrib);
+    sync.syncInsertFinance(fin);
     this.emit();
   }
 
@@ -572,7 +586,7 @@ class Store {
     const area = this.areas.find((a) => a.id === p.areaId);
     const baseSlug = (p.slug && p.slug.trim()) || slugify(p.name);
     const slug = this.uniqueProfessionalSlug(baseSlug);
-    this.professionals.push({
+    const pro: Professional = {
       id: crypto.randomUUID(),
       name: p.name,
       specialty: p.specialty,
@@ -580,7 +594,9 @@ class Store {
       slug,
       color: area?.color ?? PALETTE[this.professionals.length % PALETTE.length],
       anamnesisTemplate: defaultTemplate(area?.key ?? ""),
-    });
+    };
+    this.professionals.push(pro);
+    sync.syncInsertProfessional(pro);
     this.emit();
   }
   updateProfessional(id: string, patch: Partial<Omit<Professional, "id">>) {
@@ -591,12 +607,14 @@ class Store {
       patch.slug = this.uniqueProfessionalSlug(next, id);
     }
     Object.assign(pro, patch);
+    sync.syncUpdateProfessional(id, patch);
     this.emit();
   }
   setProfessionalTemplate(id: string, fields: AnamnesisField[]) {
     const pro = this.professionals.find((p) => p.id === id);
     if (!pro) return;
     pro.anamnesisTemplate = { fields, updatedAt: new Date().toISOString() };
+    sync.syncUpdateProfessional(id, { anamnesisTemplate: pro.anamnesisTemplate });
     this.emit();
   }
   private uniqueProfessionalSlug(base: string, ignoreId?: string): string {
@@ -614,11 +632,14 @@ class Store {
 
   // --- Schedule blocks ---
   addBlock(b: Omit<ScheduleBlock, "id">) {
-    this.scheduleBlocks.push({ ...b, id: crypto.randomUUID() });
+    const block = { ...b, id: crypto.randomUUID() };
+    this.scheduleBlocks.push(block);
+    sync.syncInsertBlock(block);
     this.emit();
   }
   removeBlock(id: string) {
     this.scheduleBlocks = this.scheduleBlocks.filter((b) => b.id !== id);
+    sync.syncDeleteBlock(id);
     this.emit();
   }
   /** Verifica se um intervalo está bloqueado para o profissional. */
@@ -645,7 +666,9 @@ class Store {
       return "";
     }
     const id = crypto.randomUUID();
-    this.appointments.push({ ...a, id });
+    const appt: Appointment = { ...a, id };
+    this.appointments.push(appt);
+    sync.syncInsertAppointment(appt);
     const pt = this.patients.find((p) => p.id === a.patientId);
     if (pt) {
       const when = format(new Date(a.date), "dd/MM 'às' HH:mm");
@@ -664,6 +687,7 @@ class Store {
     const a = this.appointments.find((x) => x.id === id);
     if (a) {
       a.status = status;
+      sync.syncUpdateAppointment(id, { status });
       this.emit();
     }
   }
@@ -671,6 +695,7 @@ class Store {
     const a = this.appointments.find((x) => x.id === id);
     if (a) {
       a.notes = notes;
+      sync.syncUpdateAppointment(id, { notes });
       this.emit();
     }
   }
@@ -721,7 +746,9 @@ class Store {
 
   // --- Finance ---
   addFinance(e: Omit<FinanceEntry, "id">) {
-    this.finance.unshift({ ...e, id: crypto.randomUUID() });
+    const fin = { ...e, id: crypto.randomUUID() };
+    this.finance.unshift(fin);
+    sync.syncInsertFinance(fin);
     this.emit();
   }
   getTotalRaised(): number {
