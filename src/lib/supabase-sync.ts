@@ -499,3 +499,130 @@ export function syncUpdateClinic(patch: Partial<{ name: string; slug: string; lo
   if (Object.keys(row).length === 0) return;
   void supabase.from("clinics").update(row as never).eq("id", cid).then(({ error }) => logErr("update clinic", error));
 }
+
+export function syncDeleteProfessional(id: string) {
+  void supabase
+    .from("professionals")
+    .delete()
+    .eq("id", id)
+    .then(({ error }) => logErr("delete professional", error));
+}
+
+/* ============== Realtime ============== */
+
+let realtimeChannel: ReturnType<typeof supabase.channel> | null = null;
+
+/** Subscribe to changes in appointments/patients/blocks for the current clinic
+ *  so portal-driven inserts (anon role) propagate to /app screens instantly. */
+export function subscribeRealtime() {
+  const cid = currentClinicId;
+  if (!cid || realtimeChannel) return;
+  realtimeChannel = supabase
+    .channel(`clinic-${cid}`)
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "appointments", filter: `clinic_id=eq.${cid}` },
+      (payload) => handleAppointmentChange(payload),
+    )
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "patients", filter: `clinic_id=eq.${cid}` },
+      (payload) => handlePatientChange(payload),
+    )
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "schedule_blocks", filter: `clinic_id=eq.${cid}` },
+      (payload) => handleBlockChange(payload),
+    )
+    .subscribe();
+}
+
+export function unsubscribeRealtime() {
+  if (realtimeChannel) {
+    void supabase.removeChannel(realtimeChannel);
+    realtimeChannel = null;
+  }
+}
+
+type RTPayload = { eventType: "INSERT" | "UPDATE" | "DELETE"; new: Record<string, unknown>; old: Record<string, unknown> };
+
+function handleAppointmentChange(p: RTPayload) {
+  const row = (p.new ?? p.old) as Record<string, unknown>;
+  const id = row.id as string;
+  if (!id) return;
+  if (p.eventType === "DELETE") {
+    store.appointments = store.appointments.filter((a) => a.id !== id);
+  } else {
+    const r = p.new as Record<string, unknown>;
+    const mapped: Appointment = {
+      id,
+      patientId: r.patient_id as string,
+      professionalId: r.professional_id as string,
+      date: r.date as string,
+      durationMin: (r.duration_min as number) ?? 45,
+      status: r.status as Appointment["status"],
+      modality: (r.modality as Appointment["modality"]) ?? undefined,
+      notes: (r.notes as string) ?? undefined,
+    };
+    const idx = store.appointments.findIndex((a) => a.id === id);
+    if (idx >= 0) store.appointments[idx] = mapped;
+    else store.appointments.push(mapped);
+  }
+  store.emit();
+}
+
+function handlePatientChange(p: RTPayload) {
+  const row = (p.new ?? p.old) as Record<string, unknown>;
+  const id = row.id as string;
+  if (!id) return;
+  if (p.eventType === "DELETE") {
+    store.patients = store.patients.filter((x) => x.id !== id);
+  } else {
+    const r = p.new as Record<string, unknown>;
+    const existing = store.patients.find((x) => x.id === id);
+    const mapped: Patient = {
+      id,
+      name: r.name as string,
+      phone: (r.phone as string) ?? "",
+      birthDate: (r.birth_date as string) ?? "",
+      email: (r.email as string) ?? undefined,
+      professionalId: (r.professional_id as string) ?? undefined,
+      isContributor: !!r.is_contributor,
+      contributionAmount: r.contribution_amount != null ? Number(r.contribution_amount) : undefined,
+      lgptConsent: !!r.lgpt_consent,
+      personal: (r.personal as Patient["personal"]) ?? undefined,
+      health: (r.health as Patient["health"]) ?? undefined,
+      notes: existing?.notes ?? [],
+      areaAnamneses: existing?.areaAnamneses ?? [],
+      exams: existing?.exams ?? [],
+      contributions: existing?.contributions ?? [],
+    };
+    const idx = store.patients.findIndex((x) => x.id === id);
+    if (idx >= 0) store.patients[idx] = mapped;
+    else store.patients.push(mapped);
+  }
+  store.emit();
+}
+
+function handleBlockChange(p: RTPayload) {
+  const row = (p.new ?? p.old) as Record<string, unknown>;
+  const id = row.id as string;
+  if (!id) return;
+  if (p.eventType === "DELETE") {
+    store.scheduleBlocks = store.scheduleBlocks.filter((b) => b.id !== id);
+  } else {
+    const r = p.new as Record<string, unknown>;
+    const mapped: ScheduleBlock = {
+      id,
+      professionalId: r.professional_id as string,
+      kind: r.kind as ScheduleBlock["kind"],
+      start: r.start_at as string,
+      end: r.end_at as string,
+      reason: (r.reason as string) ?? undefined,
+    };
+    const idx = store.scheduleBlocks.findIndex((b) => b.id === id);
+    if (idx >= 0) store.scheduleBlocks[idx] = mapped;
+    else store.scheduleBlocks.push(mapped);
+  }
+  store.emit();
+}
