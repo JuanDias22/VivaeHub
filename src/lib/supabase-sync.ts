@@ -450,5 +450,5 @@ export function syncUpdateClinic(patch: Partial<{ name: string; slug: string; lo
   if (patch.slug !== undefined) row.slug = patch.slug;
   if (patch.logoUrl !== undefined) row.logo_url = patch.logoUrl;
   if (Object.keys(row).length === 0) return;
-  void supabase.from("clinics").update(row).eq("id", cid).then(({ error }) => logErr("update clinic", error));
+  void supabase.from("clinics").update(row as never).eq("id", cid).then(({ error }) => logErr("update clinic", error));
 }
