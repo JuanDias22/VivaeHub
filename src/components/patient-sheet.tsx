@@ -24,7 +24,7 @@ import {
   type AnamnesisField,
   type AreaAnamnesis,
 } from "@/lib/mock-store";
-import { FileText, History, Phone, CalendarDays, Lock, Save, Stethoscope } from "lucide-react";
+import { FileText, History, Phone, CalendarDays, Save } from "lucide-react";
 
 export function PatientSheet({
   patientId,
@@ -39,8 +39,6 @@ export function PatientSheet({
     ? store.professionals.find((p) => p.id === patient.professionalId)
     : null;
   const lastContrib = patient ? store.getLastContribution(patient.id) : undefined;
-  const activePro = store.getActiveProfessional();
-  const activeAreaId = activePro?.areaId;
 
   const apptHistory = patient
     ? store.appointments
@@ -83,11 +81,6 @@ export function PatientSheet({
                   </span>
                 )}
               </div>
-              {activePro && (
-                <div className="text-[11px] rounded-md bg-muted/50 px-2 py-1 inline-flex items-center gap-1 w-fit">
-                  <Stethoscope className="h-3 w-3" /> Atuando como {activePro.name}
-                </div>
-              )}
             </SheetHeader>
 
             <Tabs defaultValue="clinico" className="mt-6">
@@ -109,18 +102,11 @@ export function PatientSheet({
               </TabsContent>
 
               {/* Uma aba por área */}
-              {store.areas.map((a) => {
-                const allowed = !activeAreaId || activeAreaId === a.id;
-                return (
-                  <TabsContent key={a.id} value={`area-${a.id}`} className="mt-4 space-y-4">
-                    {!allowed ? (
-                      <RestrictedNotice areaName={a.name} activePro={activePro?.name} />
-                    ) : (
-                      <AreaPanel patientId={patient.id} areaId={a.id} />
-                    )}
-                  </TabsContent>
-                );
-              })}
+              {store.areas.map((a) => (
+                <TabsContent key={a.id} value={`area-${a.id}`} className="mt-4 space-y-4">
+                  <AreaPanel patientId={patient.id} areaId={a.id} />
+                </TabsContent>
+              ))}
 
               {/* HISTÓRICO */}
               <TabsContent value="historico" className="mt-4">
