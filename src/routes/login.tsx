@@ -15,7 +15,6 @@ import {
   Stethoscope,
   Sparkles,
 } from "lucide-react";
-import { store } from "@/lib/mock-store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
