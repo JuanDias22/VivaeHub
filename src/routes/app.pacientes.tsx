@@ -23,10 +23,10 @@ import {
   SelectItem,
 } from "@/components/ui/select";
 import { Plus, Phone, CalendarDays, Stethoscope } from "lucide-react";
-import { format } from "date-fns";
 import { toast } from "sonner";
 import { PatientSheet } from "@/components/patient-sheet";
 import { ContributionBadge } from "@/components/financial-badge";
+import { formatDateOnly } from "@/lib/date-utils";
 import {
   CONTRIBUTION_AMOUNT,
   CONTRIBUTION_TEXT,
@@ -87,7 +87,7 @@ function Pacientes() {
                   </div>
                   <div className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
                     <CalendarDays className="h-3 w-3" />{" "}
-                    {format(new Date(p.birthDate), "dd/MM/yyyy")}
+                    {formatDateOnly(p.birthDate, "dd/MM/yyyy")}
                   </div>
                   {responsible && (
                     <div className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5 truncate">
