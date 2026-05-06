@@ -206,8 +206,8 @@ export function clearSyncSession() {
 }
 
 export function listenForPublicSync() {
-  if (typeof window === "undefined" || publicSyncBroadcast) return;
-  publicSyncBroadcast = new BroadcastChannel("vivaehub-sync");
+  if (typeof window === "undefined") return;
+  publicSyncBroadcast ??= new BroadcastChannel("vivaehub-sync");
   publicSyncBroadcast.onmessage = (event) => {
     const msg = event.data as { kind?: string; clinicId?: string } | null;
     if (!msg?.clinicId || msg.clinicId !== currentClinicId) return;
