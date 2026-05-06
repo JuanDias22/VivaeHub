@@ -234,8 +234,6 @@ function EditPatientDialog({
   const [professionalId, setProfessionalId] = useState<string>(pt?.professionalId ?? "none");
   const [isContributor, setIsContributor] = useState(!!pt?.isContributor);
 
-  // Resync when opening
-  useState(() => 0);
   if (!pt) return null;
 
   function submit(e: React.FormEvent) {
