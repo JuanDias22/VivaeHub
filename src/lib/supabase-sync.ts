@@ -185,12 +185,14 @@ export async function hydrateFromSupabase(): Promise<boolean> {
   store.authed = true;
   store.activeProfessionalId = store.professionals[0]?.id ?? null;
   store.emit();
+  subscribeRealtime();
   return true;
 }
 
 export function clearSyncSession() {
   currentUserId = null;
   currentClinicId = null;
+  unsubscribeRealtime();
 }
 
 /** Public hydration for the patient portal (anonymous). Loads clinic, areas,
