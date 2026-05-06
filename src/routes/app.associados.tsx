@@ -157,8 +157,9 @@ function PatientsContribTable({ patients }: { patients: Patient[] }) {
                         size="sm"
                         variant="outline"
                         onClick={() => {
-                          store.setContributorStatus(p.id, !p.isContributor);
-                          toast.success(p.isContributor ? "Paciente removido dos contribuintes" : "Paciente marcado como contribuinte");
+                          const next = !p.isContributor;
+                          store.setContributorStatus(p.id, next);
+                          toast.success(next ? "Paciente marcado como contribuinte" : "Paciente removido dos contribuintes");
                         }}
                       >
                         Editar
