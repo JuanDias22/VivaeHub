@@ -438,7 +438,13 @@ export function syncInsertAppointment(a: Appointment) {
       modality: a.modality ?? null,
       notes: a.notes ?? null,
     })
-    .then(({ error }) => logErr("insert appointment", error));
+    .then(({ error }) => {
+      logErr("insert appointment", error);
+      // Refetch agenda/consultas imediatamente após confirmar agendamento,
+      // garantindo que todas as telas reflitam o estado real do banco
+      // (e não apenas o estado local otimista).
+      void refetchAppointments();
+    });
 }
 export function syncUpdateAppointment(id: string, patch: Partial<Appointment>) {
   const row: Record<string, unknown> = {};
@@ -452,7 +458,10 @@ export function syncUpdateAppointment(id: string, patch: Partial<Appointment>) {
     .from("appointments")
     .update(row as never)
     .eq("id", id)
-    .then(({ error }) => logErr("update appointment", error));
+    .then(({ error }) => {
+      logErr("update appointment", error);
+      void refetchAppointments();
+    });
 }
 
 export function syncInsertBlock(b: ScheduleBlock) {
