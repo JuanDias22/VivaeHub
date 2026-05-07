@@ -133,10 +133,18 @@ function UpgradePage() {
               </ul>
               <Button
                 onClick={() => handleUpgrade(p.id)}
+                disabled={loadingPlan !== null}
                 className={`w-full ${p.highlight ? "gradient-primary" : ""}`}
                 variant={p.highlight ? "default" : "outline"}
               >
-                Fazer upgrade
+                {loadingPlan === p.id ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Redirecionando...
+                  </>
+                ) : (
+                  "Fazer upgrade"
+                )}
               </Button>
             </Card>
           ))}
