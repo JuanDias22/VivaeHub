@@ -185,6 +185,8 @@ export type Clinic = {
   ownerEmail: string;
   slug: string;
   logoUrl?: string;
+  plan?: "trial" | "basic" | "pro";
+  trialEndsAt?: string;
 };
 
 export type AppRole = "admin" | "recepcao" | "profissional";

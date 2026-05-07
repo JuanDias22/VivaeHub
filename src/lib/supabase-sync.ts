@@ -111,6 +111,8 @@ export async function hydrateFromSupabase(): Promise<boolean> {
       ownerEmail: clinicRes.data.owner_email,
       slug: clinicRes.data.slug,
       logoUrl: clinicRes.data.logo_url ?? undefined,
+      plan: ((clinicRes.data as { plan?: string }).plan as "trial" | "basic" | "pro") ?? "trial",
+      trialEndsAt: (clinicRes.data as { trial_ends_at?: string }).trial_ends_at ?? undefined,
     };
   }
 

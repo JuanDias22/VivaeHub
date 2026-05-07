@@ -117,7 +117,9 @@ export type Database = {
           logo_url: string | null
           name: string
           owner_email: string
+          plan: Database["public"]["Enums"]["clinic_plan"]
           slug: string
+          trial_ends_at: string
           updated_at: string
         }
         Insert: {
@@ -126,7 +128,9 @@ export type Database = {
           logo_url?: string | null
           name: string
           owner_email: string
+          plan?: Database["public"]["Enums"]["clinic_plan"]
           slug: string
+          trial_ends_at?: string
           updated_at?: string
         }
         Update: {
@@ -135,7 +139,9 @@ export type Database = {
           logo_url?: string | null
           name?: string
           owner_email?: string
+          plan?: Database["public"]["Enums"]["clinic_plan"]
           slug?: string
+          trial_ends_at?: string
           updated_at?: string
         }
         Relationships: []
@@ -652,6 +658,7 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "recepcao" | "profissional"
+      clinic_plan: "trial" | "basic" | "pro"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -780,6 +787,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "recepcao", "profissional"],
+      clinic_plan: ["trial", "basic", "pro"],
     },
   },
 } as const
