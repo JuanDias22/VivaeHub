@@ -16,6 +16,7 @@ import { useStore } from "@/hooks/use-store";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { ContextSwitcher } from "@/components/context-switcher";
+import { ContextPickerModal } from "@/components/context-picker-modal";
 
 type NavItem = {
   to:
@@ -153,6 +154,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <main className="flex-1 md:ml-0 pt-24 md:pt-0">
         <div className="px-4 md:px-8 py-6 md:py-8 max-w-[1400px] mx-auto w-full">{children}</div>
       </main>
+      <ContextPickerModal />
     </div>
   );
 }
