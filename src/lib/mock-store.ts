@@ -611,6 +611,12 @@ class Store {
 
   // --- Professionals ---
   addProfessional(p: Omit<Professional, "id" | "color" | "slug" | "anamnesisTemplate"> & { slug?: string }) {
+    // Plan-limit guard (frontend). Backend has matching DB trigger.
+    const plan = (this.clinic.plan ?? "trial") as "trial" | "basic" | "plus" | "pro";
+    const limit = plan === "pro" ? Infinity : plan === "plus" ? 10 : 5;
+    if (this.professionals.length >= limit) {
+      throw new Error(`Limite de profissionais do plano ${plan} atingido (${limit}).`);
+    }
     const area = this.areas.find((a) => a.id === p.areaId);
     const baseSlug = (p.slug && p.slug.trim()) || slugify(p.name);
     const slug = this.uniqueProfessionalSlug(baseSlug);
