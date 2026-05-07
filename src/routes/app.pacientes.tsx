@@ -43,9 +43,18 @@ function Pacientes() {
   const [selected, setSelected] = useState<string | null>(null);
   const [search, setSearch] = useState("");
 
-  const filtered = store.patients.filter((p) =>
-    p.name.toLowerCase().includes(search.toLowerCase()),
-  );
+  const proCtxId =
+    store.session?.role === "profissional" ? store.session.professionalId : undefined;
+  const filtered = store.patients.filter((p) => {
+    if (!p.name.toLowerCase().includes(search.toLowerCase())) return false;
+    if (proCtxId) {
+      if (p.professionalId === proCtxId) return true;
+      return store.appointments.some(
+        (a) => a.patientId === p.id && a.professionalId === proCtxId,
+      );
+    }
+    return true;
+  });
 
   return (
     <div>
