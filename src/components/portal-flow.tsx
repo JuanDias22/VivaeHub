@@ -694,6 +694,86 @@ function ScreenAgendamento({
   );
 }
 
+function ScreenAnamnese({
+  proId, answers, setAnswers,
+}: {
+  proId: string;
+  answers: Record<string, string | string[] | boolean>;
+  setAnswers: (v: Record<string, string | string[] | boolean>) => void;
+}) {
+  const store = useStore();
+  const pro = store.professionals.find((p) => p.id === proId);
+  const area = pro ? store.areas.find((a) => a.id === pro.areaId) : undefined;
+  const fields: AnamnesisField[] = pro?.anamnesisTemplate?.fields ?? [];
+
+  function setVal(id: string, v: string | string[] | boolean) {
+    setAnswers({ ...answers, [id]: v });
+  }
+
+  return (
+    <div className="space-y-5">
+      <div>
+        <h2 className="text-xl font-semibold">Anamnese</h2>
+        <p className="text-sm text-muted-foreground">
+          Perguntas preparadas {pro ? `por ${pro.name}` : ""}{area ? ` · ${area.name}` : ""}.
+        </p>
+      </div>
+
+      {fields.length === 0 ? (
+        <div className="rounded-lg border bg-muted/30 p-4 text-sm text-muted-foreground">
+          Este profissional ainda não configurou um modelo de anamnese. Você pode prosseguir.
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {fields.map((f) => {
+            const v = answers[f.id];
+            return (
+              <div key={f.id} className="space-y-1.5">
+                <Label className="text-xs">{f.label}</Label>
+                {f.type === "texto" && (
+                  <Input value={typeof v === "string" ? v : ""} onChange={(e) => setVal(f.id, e.target.value)} />
+                )}
+                {f.type === "textarea" && (
+                  <Textarea rows={3} value={typeof v === "string" ? v : ""} onChange={(e) => setVal(f.id, e.target.value)} />
+                )}
+                {f.type === "checkbox" && (
+                  <label className="flex items-center gap-2">
+                    <Checkbox checked={v === true} onCheckedChange={(c) => setVal(f.id, !!c)} />
+                    <span className="text-sm text-muted-foreground">Marcar</span>
+                  </label>
+                )}
+                {f.type === "sim_nao" && (
+                  <RadioGroup
+                    value={typeof v === "string" ? v : ""}
+                    onValueChange={(val) => setVal(f.id, val)}
+                    className="flex gap-3"
+                  >
+                    <label className="flex items-center gap-1.5 text-sm"><RadioGroupItem value="sim" /> Sim</label>
+                    <label className="flex items-center gap-1.5 text-sm"><RadioGroupItem value="nao" /> Não</label>
+                  </RadioGroup>
+                )}
+                {f.type === "multipla" && (
+                  <RadioGroup
+                    value={typeof v === "string" ? v : ""}
+                    onValueChange={(val) => setVal(f.id, val)}
+                    className="grid grid-cols-1 sm:grid-cols-2 gap-1.5"
+                  >
+                    {(f.options ?? []).map((opt) => (
+                      <label key={opt} className="flex items-center gap-2 rounded-md border p-2 text-sm cursor-pointer hover:bg-muted/40">
+                        <RadioGroupItem value={opt} /> {opt}
+                      </label>
+                    ))}
+                  </RadioGroup>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ScreenTermos({
   lgpdConsent, setLgpdConsent, contributeConsent, setContributeConsent,
 }: {
