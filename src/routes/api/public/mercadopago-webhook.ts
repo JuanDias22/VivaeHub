@@ -68,7 +68,7 @@ export const Route = createFileRoute("/api/public/mercadopago-webhook")({
         const { error } = await supabaseAdmin
           .from("clinics")
           .update({
-            plan: plan as "basic" | "plus" | "pro",
+            plan: plan as any,
             trial_ends_at: new Date().toISOString(),
           })
           .eq("id", clinicId);
