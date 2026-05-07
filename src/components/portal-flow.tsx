@@ -35,23 +35,27 @@ import {
   LGPD_TEXT,
   type PatientHealth,
   type PatientPersonal,
+  type AnamnesisField,
+  type AreaAnamnesis,
 } from "@/lib/mock-store";
 
 const STEPS_GENERAL = [
   { id: 1, title: "Profissional" },
   { id: 2, title: "Cadastro" },
   { id: 3, title: "Saúde" },
-  { id: 4, title: "Agendamento" },
-  { id: 5, title: "Termos" },
-  { id: 6, title: "Confirmação" },
+  { id: 4, title: "Anamnese" },
+  { id: 5, title: "Agendamento" },
+  { id: 6, title: "Termos" },
+  { id: 7, title: "Confirmação" },
 ];
 
 const STEPS_PRO = [
   { id: 1, title: "Cadastro" },
   { id: 2, title: "Saúde" },
-  { id: 3, title: "Agendamento" },
-  { id: 4, title: "Termos" },
-  { id: 5, title: "Confirmação" },
+  { id: 3, title: "Anamnese" },
+  { id: 4, title: "Agendamento" },
+  { id: 5, title: "Termos" },
+  { id: 6, title: "Confirmação" },
 ];
 
 type Conditions = PatientHealth["conditions"];
@@ -133,10 +137,15 @@ export function PortalFlow({
   const [lgpdConsent, setLgpdConsent] = useState(false);
   const [contributeConsent, setContributeConsent] = useState(false);
 
+  // Anamnese do profissional
+  const [anamneseAnswers, setAnamneseAnswers] = useState<
+    Record<string, string | string[] | boolean>
+  >({});
+
   function screen(): string {
     const seq = isFixed
-      ? ["cadastro", "saude", "agendamento", "termos", "confirmacao"]
-      : ["profissional", "cadastro", "saude", "agendamento", "termos", "confirmacao"];
+      ? ["cadastro", "saude", "anamnese", "agendamento", "termos", "confirmacao"]
+      : ["profissional", "cadastro", "saude", "anamnese", "agendamento", "termos", "confirmacao"];
     return seq[step - 1] ?? "confirmacao";
   }
 
@@ -211,6 +220,19 @@ export function PortalFlow({
       toast.error("Horário indisponível — selecione outro horário.");
       return;
     }
+
+    // Salva a anamnese preenchida (se o profissional tiver modelo configurado).
+    const proSel = store.professionals.find((p) => p.id === proId);
+    if (proSel && proSel.anamnesisTemplate?.fields?.length && Object.keys(anamneseAnswers).length > 0) {
+      const anam: AreaAnamnesis = {
+        areaId: proSel.areaId,
+        professionalId: proId,
+        filledAt: new Date().toISOString(),
+        answers: anamneseAnswers,
+      };
+      store.setAreaAnamnesis(patientId, anam);
+    }
+
     setDone(true);
   }
 
@@ -316,6 +338,13 @@ export function PortalFlow({
               diabetesType={diabetesType} setDiabetesType={setDiabetesType}
               medications={medications} setMedications={setMedications}
               conditions={conditions} setConditions={setConditions}
+            />
+          )}
+          {s === "anamnese" && (
+            <ScreenAnamnese
+              proId={proId}
+              answers={anamneseAnswers}
+              setAnswers={setAnamneseAnswers}
             />
           )}
           {s === "agendamento" && (
