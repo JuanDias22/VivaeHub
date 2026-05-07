@@ -187,6 +187,15 @@ export type Clinic = {
   logoUrl?: string;
 };
 
+export type AppRole = "admin" | "recepcao" | "profissional";
+
+export type Session = {
+  userId: string;
+  clinicId: string;
+  role: AppRole;
+  professionalId?: string;
+};
+
 type Listener = () => void;
 
 /** Contribuição mensal fixa da APAD. */
@@ -305,6 +314,8 @@ class Store {
   authed = false;
   /** Profissional "ativo" da sessão — usado para escopar o prontuário por área. */
   activeProfessionalId: string | null = null;
+  /** Sessão atual (multi-tenant + RBAC). null antes do login. */
+  session: Session | null = null;
 
   areas: Area[] = [];
   professionals: Professional[] = [];
@@ -342,8 +353,19 @@ class Store {
   }
   logout() {
     this.authed = false;
+    this.session = null;
     sync.clearSyncSession();
     this.emit();
+  }
+  setSession(s: Session | null) {
+    this.session = s;
+    if (s?.role === "profissional" && s.professionalId) {
+      this.activeProfessionalId = s.professionalId;
+    }
+    this.emit();
+  }
+  hasRole(...roles: AppRole[]) {
+    return !!this.session && roles.includes(this.session.role);
   }
   setActiveProfessional(id: string | null) {
     this.activeProfessionalId = id;
