@@ -326,6 +326,8 @@ class Store {
   availableContexts: UserContext[] = [];
   /** Marca se o usuário já escolheu (ou auto-aplicou) um contexto nesta sessão. */
   contextChosen = false;
+  /** Nome da página recusada por permissão — exibida em modal global. */
+  deniedPage: string | null = null;
 
   areas: Area[] = [];
   professionals: Professional[] = [];
@@ -367,6 +369,7 @@ class Store {
     this.availableContexts = [];
     this.contextChosen = false;
     this.activeProfessionalId = null;
+    this.deniedPage = null;
     sync.clearSyncSession();
     this.emit();
   }
@@ -451,6 +454,14 @@ class Store {
   }
   hasRole(...roles: AppRole[]) {
     return !!this.session && roles.includes(this.session.role);
+  }
+  denyAccess(pageName: string) {
+    this.deniedPage = pageName;
+    this.emit();
+  }
+  clearDenied() {
+    this.deniedPage = null;
+    this.emit();
   }
   setActiveProfessional(id: string | null) {
     this.activeProfessionalId = id;
