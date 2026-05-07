@@ -1,15 +1,18 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
-const PRICES: Record<"basic" | "pro", { amount: number; title: string }> = {
+type PlanId = "basic" | "plus" | "pro";
+
+const PRICES: Record<PlanId, { amount: number; title: string }> = {
   basic: { amount: 99, title: "VivaeHub - Plano Basic" },
-  pro: { amount: 249, title: "VivaeHub - Plano Pro" },
+  plus: { amount: 159, title: "VivaeHub - Plano Plus" },
+  pro: { amount: 279, title: "VivaeHub - Plano Pro" },
 };
 
 export const createCheckoutPreference = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: { plan: "basic" | "pro" }) => {
-    if (data?.plan !== "basic" && data?.plan !== "pro") {
+  .inputValidator((data: { plan: PlanId }) => {
+    if (data?.plan !== "basic" && data?.plan !== "plus" && data?.plan !== "pro") {
       throw new Error("Plano inválido");
     }
     return data;

@@ -185,7 +185,7 @@ export type Clinic = {
   ownerEmail: string;
   slug: string;
   logoUrl?: string;
-  plan?: "trial" | "basic" | "pro";
+  plan?: "trial" | "basic" | "plus" | "pro";
   trialEndsAt?: string;
 };
 

@@ -60,7 +60,7 @@ export const Route = createFileRoute("/api/public/mercadopago-webhook")({
           plan = plan || p;
         }
 
-        if (!clinicId || (plan !== "basic" && plan !== "pro")) {
+        if (!clinicId || (plan !== "basic" && plan !== "plus" && plan !== "pro")) {
           console.error("MP webhook missing clinic/plan", payment);
           return new Response("bad metadata", { status: 200 });
         }
@@ -68,7 +68,7 @@ export const Route = createFileRoute("/api/public/mercadopago-webhook")({
         const { error } = await supabaseAdmin
           .from("clinics")
           .update({
-            plan: plan as "basic" | "pro",
+            plan: plan as any,
             trial_ends_at: new Date().toISOString(),
           })
           .eq("id", clinicId);
