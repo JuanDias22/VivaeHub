@@ -29,6 +29,9 @@ import { BlockScheduleDialog } from "@/components/block-schedule-dialog";
 import { Textarea } from "@/components/ui/textarea";
 import type { AnamnesisField } from "@/lib/mock-store";
 import { store } from "@/lib/mock-store";
+import { getPlanLimit, formatLimit, PLAN_LABELS, type PlanId } from "@/lib/plan";
+import { Link } from "@tanstack/react-router";
+import { Sparkles } from "lucide-react";
 
 export const Route = createFileRoute("/app/profissionais")({
   beforeLoad: () => {
@@ -43,14 +46,48 @@ function Profissionais() {
   const store = useStore();
   const [openPro, setOpenPro] = useState(false);
   const today = new Date();
+  const plan = (store.clinic.plan ?? "trial") as PlanId;
+  const limit = getPlanLimit(store.clinic, "professionals");
+  const used = store.professionals.length;
+  const reached = used >= limit;
 
   return (
     <div>
       <PageHeader
         title="Profissionais"
         description="Cadastro, áreas de atuação e visão por agenda."
-        action={<NewProDialog open={openPro} onOpenChange={setOpenPro} />}
+        action={
+          <NewProDialog
+            open={openPro}
+            onOpenChange={setOpenPro}
+            disabled={reached}
+          />
+        }
       />
+
+      <Card className="p-4 shadow-soft mb-4 flex flex-wrap items-center gap-3">
+        <div className="flex items-center gap-2">
+          <Badge variant="outline" className="font-medium">
+            Plano {PLAN_LABELS[plan]}
+          </Badge>
+          <span className="text-sm">
+            <strong>{used}</strong>
+            <span className="text-muted-foreground"> / {formatLimit(limit)} funcionários</span>
+          </span>
+        </div>
+        {reached && (
+          <div className="flex items-center gap-3 ml-auto">
+            <span className="text-xs text-destructive">
+              Limite do seu plano atingido. Faça upgrade para continuar.
+            </span>
+            <Link to="/upgrade">
+              <Button size="sm" variant="default" className="gradient-primary">
+                <Sparkles className="h-3.5 w-3.5 mr-1" /> Ver planos
+              </Button>
+            </Link>
+          </div>
+        )}
+      </Card>
 
       {/* Áreas configuráveis */}
       <Card className="p-5 shadow-soft mb-6">
@@ -284,7 +321,15 @@ function NewAreaInline() {
   );
 }
 
-function NewProDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
+function NewProDialog({
+  open,
+  onOpenChange,
+  disabled,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  disabled?: boolean;
+}) {
   const store = useStore();
   const [name, setName] = useState("");
   const [specialty, setSpecialty] = useState("");
@@ -298,24 +343,38 @@ function NewProDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v:
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/(^-|-$)/g, "");
 
-  function submit(e: React.FormEvent) {
+  async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!areaId) {
       toast.error("Cadastre uma área primeiro");
       return;
     }
-    store.addProfessional({ name, specialty, areaId, slug: slug.trim() || autoSlug });
-    toast.success("Profissional cadastrado");
-    onOpenChange(false);
-    setName("");
-    setSpecialty("");
-    setSlug("");
+    try {
+      await store.addProfessional({ name, specialty, areaId, slug: slug.trim() || autoSlug });
+      toast.success("Profissional cadastrado");
+      onOpenChange(false);
+      setName("");
+      setSpecialty("");
+      setSlug("");
+    } catch (err: any) {
+      const msg = String(err?.message || "");
+      if (msg.includes("Limite de profissionais")) {
+        toast.error("Limite do seu plano atingido. Faça upgrade para continuar.");
+      } else {
+        toast.error("Erro ao cadastrar profissional");
+      }
+    }
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(v) => !disabled && onOpenChange(v)}>
       <DialogTrigger asChild>
-        <Button size="sm" className="gradient-primary shadow-soft">
+        <Button
+          size="sm"
+          className="gradient-primary shadow-soft"
+          disabled={disabled}
+          title={disabled ? "Limite do plano atingido" : undefined}
+        >
           <Plus className="h-4 w-4 mr-1" /> Novo profissional
         </Button>
       </DialogTrigger>
