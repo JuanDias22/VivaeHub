@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useState } from "react";
 import { useStore } from "@/hooks/use-store";
 import { PageHeader } from "@/components/page-header";
@@ -25,8 +25,14 @@ import {
 import { TrendingUp, Heart, Plus } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
+import { store as globalStore } from "@/lib/mock-store";
 
 export const Route = createFileRoute("/app/financeiro")({
+  beforeLoad: () => {
+    if (globalStore.session && globalStore.session.role === "profissional") {
+      throw redirect({ to: "/app" });
+    }
+  },
   component: Financeiro,
 });
 
