@@ -150,7 +150,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <Activity className="h-4 w-4 text-primary-foreground" />
           </div>
           <div className="text-sm font-semibold truncate">{store.clinic.name}</div>
-          <div className="text-[10px] text-muted-foreground ml-auto">VivaeHub</div>
+          <Link
+            to="/upgrade"
+            className={cn(
+              "ml-auto text-[10px] px-1.5 py-0.5 rounded border font-medium",
+              planTone,
+            )}
+          >
+            {planLabel}
+          </Link>
         </div>
         <div className="flex overflow-x-auto px-2 pb-2 gap-1 scrollbar-none">
           {nav.map((item) => {
