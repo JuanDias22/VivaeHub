@@ -35,23 +35,27 @@ import {
   LGPD_TEXT,
   type PatientHealth,
   type PatientPersonal,
+  type AnamnesisField,
+  type AreaAnamnesis,
 } from "@/lib/mock-store";
 
 const STEPS_GENERAL = [
   { id: 1, title: "Profissional" },
   { id: 2, title: "Cadastro" },
   { id: 3, title: "Saúde" },
-  { id: 4, title: "Agendamento" },
-  { id: 5, title: "Termos" },
-  { id: 6, title: "Confirmação" },
+  { id: 4, title: "Anamnese" },
+  { id: 5, title: "Agendamento" },
+  { id: 6, title: "Termos" },
+  { id: 7, title: "Confirmação" },
 ];
 
 const STEPS_PRO = [
   { id: 1, title: "Cadastro" },
   { id: 2, title: "Saúde" },
-  { id: 3, title: "Agendamento" },
-  { id: 4, title: "Termos" },
-  { id: 5, title: "Confirmação" },
+  { id: 3, title: "Anamnese" },
+  { id: 4, title: "Agendamento" },
+  { id: 5, title: "Termos" },
+  { id: 6, title: "Confirmação" },
 ];
 
 type Conditions = PatientHealth["conditions"];
@@ -133,10 +137,15 @@ export function PortalFlow({
   const [lgpdConsent, setLgpdConsent] = useState(false);
   const [contributeConsent, setContributeConsent] = useState(false);
 
+  // Anamnese do profissional
+  const [anamneseAnswers, setAnamneseAnswers] = useState<
+    Record<string, string | string[] | boolean>
+  >({});
+
   function screen(): string {
     const seq = isFixed
-      ? ["cadastro", "saude", "agendamento", "termos", "confirmacao"]
-      : ["profissional", "cadastro", "saude", "agendamento", "termos", "confirmacao"];
+      ? ["cadastro", "saude", "anamnese", "agendamento", "termos", "confirmacao"]
+      : ["profissional", "cadastro", "saude", "anamnese", "agendamento", "termos", "confirmacao"];
     return seq[step - 1] ?? "confirmacao";
   }
 
@@ -211,6 +220,19 @@ export function PortalFlow({
       toast.error("Horário indisponível — selecione outro horário.");
       return;
     }
+
+    // Salva a anamnese preenchida (se o profissional tiver modelo configurado).
+    const proSel = store.professionals.find((p) => p.id === proId);
+    if (proSel && proSel.anamnesisTemplate?.fields?.length && Object.keys(anamneseAnswers).length > 0) {
+      const anam: AreaAnamnesis = {
+        areaId: proSel.areaId,
+        professionalId: proId,
+        filledAt: new Date().toISOString(),
+        answers: anamneseAnswers,
+      };
+      store.setAreaAnamnesis(patientId, anam);
+    }
+
     setDone(true);
   }
 
@@ -316,6 +338,13 @@ export function PortalFlow({
               diabetesType={diabetesType} setDiabetesType={setDiabetesType}
               medications={medications} setMedications={setMedications}
               conditions={conditions} setConditions={setConditions}
+            />
+          )}
+          {s === "anamnese" && (
+            <ScreenAnamnese
+              proId={proId}
+              answers={anamneseAnswers}
+              setAnswers={setAnamneseAnswers}
             />
           )}
           {s === "agendamento" && (
@@ -661,6 +690,86 @@ function ScreenAgendamento({
           })}
         </div>
       </div>
+    </div>
+  );
+}
+
+function ScreenAnamnese({
+  proId, answers, setAnswers,
+}: {
+  proId: string;
+  answers: Record<string, string | string[] | boolean>;
+  setAnswers: (v: Record<string, string | string[] | boolean>) => void;
+}) {
+  const store = useStore();
+  const pro = store.professionals.find((p) => p.id === proId);
+  const area = pro ? store.areas.find((a) => a.id === pro.areaId) : undefined;
+  const fields: AnamnesisField[] = pro?.anamnesisTemplate?.fields ?? [];
+
+  function setVal(id: string, v: string | string[] | boolean) {
+    setAnswers({ ...answers, [id]: v });
+  }
+
+  return (
+    <div className="space-y-5">
+      <div>
+        <h2 className="text-xl font-semibold">Anamnese</h2>
+        <p className="text-sm text-muted-foreground">
+          Perguntas preparadas {pro ? `por ${pro.name}` : ""}{area ? ` · ${area.name}` : ""}.
+        </p>
+      </div>
+
+      {fields.length === 0 ? (
+        <div className="rounded-lg border bg-muted/30 p-4 text-sm text-muted-foreground">
+          Este profissional ainda não configurou um modelo de anamnese. Você pode prosseguir.
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {fields.map((f) => {
+            const v = answers[f.id];
+            return (
+              <div key={f.id} className="space-y-1.5">
+                <Label className="text-xs">{f.label}</Label>
+                {f.type === "texto" && (
+                  <Input value={typeof v === "string" ? v : ""} onChange={(e) => setVal(f.id, e.target.value)} />
+                )}
+                {f.type === "textarea" && (
+                  <Textarea rows={3} value={typeof v === "string" ? v : ""} onChange={(e) => setVal(f.id, e.target.value)} />
+                )}
+                {f.type === "checkbox" && (
+                  <label className="flex items-center gap-2">
+                    <Checkbox checked={v === true} onCheckedChange={(c) => setVal(f.id, !!c)} />
+                    <span className="text-sm text-muted-foreground">Marcar</span>
+                  </label>
+                )}
+                {f.type === "sim_nao" && (
+                  <RadioGroup
+                    value={typeof v === "string" ? v : ""}
+                    onValueChange={(val) => setVal(f.id, val)}
+                    className="flex gap-3"
+                  >
+                    <label className="flex items-center gap-1.5 text-sm"><RadioGroupItem value="sim" /> Sim</label>
+                    <label className="flex items-center gap-1.5 text-sm"><RadioGroupItem value="nao" /> Não</label>
+                  </RadioGroup>
+                )}
+                {f.type === "multipla" && (
+                  <RadioGroup
+                    value={typeof v === "string" ? v : ""}
+                    onValueChange={(val) => setVal(f.id, val)}
+                    className="grid grid-cols-1 sm:grid-cols-2 gap-1.5"
+                  >
+                    {(f.options ?? []).map((opt) => (
+                      <label key={opt} className="flex items-center gap-2 rounded-md border p-2 text-sm cursor-pointer hover:bg-muted/40">
+                        <RadioGroupItem value={opt} /> {opt}
+                      </label>
+                    ))}
+                  </RadioGroup>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
