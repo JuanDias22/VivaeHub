@@ -1,12 +1,14 @@
 import { createFileRoute, redirect, Link } from "@tanstack/react-router";
+import { useState } from "react";
 import { useStore } from "@/hooks/use-store";
 import { store as globalStore } from "@/lib/mock-store";
 import { isPlanActive, trialDaysLeft } from "@/lib/plan";
 import { supabase } from "@/integrations/supabase/client";
+import { createCheckoutPreference } from "@/server/billing.functions";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Activity, Check, Sparkles } from "lucide-react";
+import { Activity, Check, Sparkles, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/upgrade")({
@@ -45,9 +47,23 @@ function UpgradePage() {
   const store = useStore();
   const active = isPlanActive(store.clinic);
   const days = trialDaysLeft(store.clinic);
+  const [loadingPlan, setLoadingPlan] = useState<"basic" | "pro" | null>(null);
 
-  function handleUpgrade(plan: "basic" | "pro") {
-    toast.info(`Fluxo de pagamento (${plan}) em breve. Entre em contato com o suporte.`);
+  async function handleUpgrade(plan: "basic" | "pro") {
+    try {
+      setLoadingPlan(plan);
+      const res = await createCheckoutPreference({ data: { plan } });
+      if (res?.url) {
+        window.location.href = res.url;
+      } else {
+        toast.error("Não foi possível iniciar o checkout.");
+        setLoadingPlan(null);
+      }
+    } catch (e: any) {
+      console.error(e);
+      toast.error(e?.message || "Erro ao iniciar pagamento");
+      setLoadingPlan(null);
+    }
   }
 
   return (
