@@ -30,6 +30,7 @@ import { store as globalStore } from "@/lib/mock-store";
 export const Route = createFileRoute("/app/financeiro")({
   beforeLoad: () => {
     if (globalStore.session && globalStore.session.role === "profissional") {
+      globalStore.denyAccess("Financeiro");
       throw redirect({ to: "/app" });
     }
   },
