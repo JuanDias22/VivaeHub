@@ -55,6 +55,7 @@ import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
 import { FinancialBadge } from "@/components/financial-badge";
 import { BlockScheduleDialog } from "@/components/block-schedule-dialog";
+import { AgendaProInsights } from "@/components/pro-insights";
 
 export const Route = createFileRoute("/app/agenda")({
   component: Agenda,
@@ -122,6 +123,8 @@ function Agenda() {
           </>
         }
       />
+
+      <AgendaProInsights />
 
       <Card className="p-3 md:p-4 shadow-soft mb-4">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">

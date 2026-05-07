@@ -26,6 +26,7 @@ import { TrendingUp, Heart, Plus } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { store as globalStore } from "@/lib/mock-store";
+import { FinanceProInsights } from "@/components/pro-insights";
 
 export const Route = createFileRoute("/app/financeiro")({
   beforeLoad: () => {
@@ -63,6 +64,8 @@ function Financeiro() {
         description="Histórico de contribuições e movimentações financeiras."
         action={<NewEntryDialog open={open} onOpenChange={setOpen} />}
       />
+
+      <FinanceProInsights />
 
       <div className="grid sm:grid-cols-3 gap-4 mb-6">
         <Card className="p-5 shadow-soft border-success/30">
