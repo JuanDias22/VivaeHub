@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useState } from "react";
 import { useStore } from "@/hooks/use-store";
 import { PageHeader } from "@/components/page-header";
@@ -30,11 +30,16 @@ import {
 import { Plus, Heart, TrendingUp, Calendar } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { CONTRIBUTION_AMOUNT, type Patient } from "@/lib/mock-store";
+import { CONTRIBUTION_AMOUNT, store as globalStore, type Patient } from "@/lib/mock-store";
 import { ContributionBadge } from "@/components/financial-badge";
 import { formatDateOnly } from "@/lib/date-utils";
 
 export const Route = createFileRoute("/app/associados")({
+  beforeLoad: () => {
+    if (globalStore.session && globalStore.session.role === "profissional") {
+      throw redirect({ to: "/app" });
+    }
+  },
   component: Contribuicoes,
 });
 
