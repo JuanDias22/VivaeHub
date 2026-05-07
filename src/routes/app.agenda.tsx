@@ -81,6 +81,13 @@ function Agenda() {
       const pro = store.professionals.find((p) => p.id === a.professionalId);
       if (pro?.areaId !== areaFilter) return false;
     }
+    if (
+      store.session?.role === "profissional" &&
+      store.session.professionalId &&
+      a.professionalId !== store.session.professionalId
+    ) {
+      return false;
+    }
     return true;
   });
 

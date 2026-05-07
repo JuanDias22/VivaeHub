@@ -15,6 +15,7 @@ import {
 import { useStore } from "@/hooks/use-store";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
+import { ContextSwitcher } from "@/components/context-switcher";
 
 type NavItem = {
   to:
@@ -94,6 +95,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </nav>
 
         <div className="border-t border-sidebar-border p-3">
+          <div className="mb-2">
+            <ContextSwitcher />
+          </div>
           <button
             onClick={() => {
               void supabase.auth.signOut().finally(() => {
