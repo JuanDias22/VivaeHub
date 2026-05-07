@@ -69,20 +69,24 @@ export async function hydrateFromSupabase(): Promise<boolean> {
   if (!profile) return false;
   currentClinicId = profile.clinic_id;
 
-  // Carrega papel + professional vinculado (RBAC)
-  const { data: roleRow } = await supabase
+  // Carrega TODOS os papéis do usuário na clínica (para o seletor de contexto)
+  const { data: roleRows } = await supabase
     .from("user_roles")
     .select("role, professional_id")
     .eq("user_id", user.id)
-    .eq("clinic_id", profile.clinic_id)
-    .order("role", { ascending: true })
-    .limit(1)
-    .maybeSingle();
+    .eq("clinic_id", profile.clinic_id);
+  const contexts = (roleRows ?? []).map((r) => ({
+    role: r.role as AppRole,
+    professionalId: r.professional_id ?? undefined,
+  }));
+  store.setAvailableContexts(contexts);
+  const rolePriority = (r: AppRole) => (r === "admin" ? 1 : r === "recepcao" ? 2 : 3);
+  const primary = [...contexts].sort((a, b) => rolePriority(a.role) - rolePriority(b.role))[0];
   store.setSession({
     userId: user.id,
     clinicId: profile.clinic_id,
-    role: (roleRow?.role as AppRole) ?? "admin",
-    professionalId: roleRow?.professional_id ?? undefined,
+    role: primary?.role ?? "admin",
+    professionalId: primary?.professionalId,
   });
 
   const [clinicRes, areasRes, prosRes, patientsRes, apptsRes, blocksRes, notesRes, anamnesesRes, examsRes, contribsRes, financeRes] =
