@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as UpgradeRouteImport } from './routes/upgrade'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as CadastroRouteImport } from './routes/cadastro'
 import { Route as AppRouteImport } from './routes/app'
@@ -24,6 +25,11 @@ import { Route as AppAssociadosRouteImport } from './routes/app.associados'
 import { Route as AppAgendaRouteImport } from './routes/app.agenda'
 import { Route as PortalSlugProRouteImport } from './routes/portal.$slug.$pro'
 
+const UpgradeRoute = UpgradeRouteImport.update({
+  id: '/upgrade',
+  path: '/upgrade',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
@@ -100,6 +106,7 @@ export interface FileRoutesByFullPath {
   '/app': typeof AppRouteWithChildren
   '/cadastro': typeof CadastroRoute
   '/login': typeof LoginRoute
+  '/upgrade': typeof UpgradeRoute
   '/app/agenda': typeof AppAgendaRoute
   '/app/associados': typeof AppAssociadosRoute
   '/app/financeiro': typeof AppFinanceiroRoute
@@ -115,6 +122,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/cadastro': typeof CadastroRoute
   '/login': typeof LoginRoute
+  '/upgrade': typeof UpgradeRoute
   '/app/agenda': typeof AppAgendaRoute
   '/app/associados': typeof AppAssociadosRoute
   '/app/financeiro': typeof AppFinanceiroRoute
@@ -132,6 +140,7 @@ export interface FileRoutesById {
   '/app': typeof AppRouteWithChildren
   '/cadastro': typeof CadastroRoute
   '/login': typeof LoginRoute
+  '/upgrade': typeof UpgradeRoute
   '/app/agenda': typeof AppAgendaRoute
   '/app/associados': typeof AppAssociadosRoute
   '/app/financeiro': typeof AppFinanceiroRoute
@@ -150,6 +159,7 @@ export interface FileRouteTypes {
     | '/app'
     | '/cadastro'
     | '/login'
+    | '/upgrade'
     | '/app/agenda'
     | '/app/associados'
     | '/app/financeiro'
@@ -165,6 +175,7 @@ export interface FileRouteTypes {
     | '/'
     | '/cadastro'
     | '/login'
+    | '/upgrade'
     | '/app/agenda'
     | '/app/associados'
     | '/app/financeiro'
@@ -181,6 +192,7 @@ export interface FileRouteTypes {
     | '/app'
     | '/cadastro'
     | '/login'
+    | '/upgrade'
     | '/app/agenda'
     | '/app/associados'
     | '/app/financeiro'
@@ -198,11 +210,19 @@ export interface RootRouteChildren {
   AppRoute: typeof AppRouteWithChildren
   CadastroRoute: typeof CadastroRoute
   LoginRoute: typeof LoginRoute
+  UpgradeRoute: typeof UpgradeRoute
   PortalSlugRoute: typeof PortalSlugRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/upgrade': {
+      id: '/upgrade'
+      path: '/upgrade'
+      fullPath: '/upgrade'
+      preLoaderRoute: typeof UpgradeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/login': {
       id: '/login'
       path: '/login'
@@ -345,8 +365,18 @@ const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
   CadastroRoute: CadastroRoute,
   LoginRoute: LoginRoute,
+  UpgradeRoute: UpgradeRoute,
   PortalSlugRoute: PortalSlugRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { createStart } from '@tanstack/react-start'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+  }
+}
