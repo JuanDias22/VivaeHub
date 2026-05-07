@@ -221,10 +221,10 @@ export async function hydrateFromSupabase(): Promise<boolean> {
   // não cria linhas em user_roles, então RLS não muda. switchContext atualiza
   // role/professionalId no store para filtros locais de UI.
   const isAdmin = realContexts.some((c) => c.role === "admin");
-  const contexts: typeof realContexts = [...realContexts];
+  const contexts: { role: AppRole; professionalId?: string }[] = [...realContexts];
   const seen = new Set(contexts.map((c) => `${c.role}:${c.professionalId ?? ""}`));
   if (isAdmin) {
-    if (!seen.has("recepcao:")) contexts.push({ role: "recepcao" });
+    if (!seen.has("recepcao:")) contexts.push({ role: "recepcao", professionalId: undefined });
     for (const pro of store.professionals) {
       const key = `profissional:${pro.id}`;
       if (!seen.has(key)) contexts.push({ role: "profissional", professionalId: pro.id });
