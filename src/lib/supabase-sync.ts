@@ -18,6 +18,7 @@ import {
   type AreaAnamnesis,
   type PatientNote,
   type ContributionEntry,
+  type AppRole,
 } from "./mock-store";
 
 let publicSyncBroadcast: BroadcastChannel | null = null;
@@ -67,6 +68,22 @@ export async function hydrateFromSupabase(): Promise<boolean> {
   }
   if (!profile) return false;
   currentClinicId = profile.clinic_id;
+
+  // Carrega papel + professional vinculado (RBAC)
+  const { data: roleRow } = await supabase
+    .from("user_roles")
+    .select("role, professional_id")
+    .eq("user_id", user.id)
+    .eq("clinic_id", profile.clinic_id)
+    .order("role", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  store.setSession({
+    userId: user.id,
+    clinicId: profile.clinic_id,
+    role: (roleRow?.role as AppRole) ?? "admin",
+    professionalId: roleRow?.professional_id ?? undefined,
+  });
 
   const [clinicRes, areasRes, prosRes, patientsRes, apptsRes, blocksRes, notesRes, anamnesesRes, examsRes, contribsRes, financeRes] =
     await Promise.all([
