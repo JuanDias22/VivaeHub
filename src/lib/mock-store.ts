@@ -196,6 +196,12 @@ export type Session = {
   professionalId?: string;
 };
 
+/** Um contexto disponível para alternância (vínculo do usuário na clínica). */
+export type UserContext = {
+  role: AppRole;
+  professionalId?: string;
+};
+
 type Listener = () => void;
 
 /** Contribuição mensal fixa da APAD. */
@@ -316,6 +322,8 @@ class Store {
   activeProfessionalId: string | null = null;
   /** Sessão atual (multi-tenant + RBAC). null antes do login. */
   session: Session | null = null;
+  /** Todos os papéis/contextos do usuário logado dentro da clínica. */
+  availableContexts: UserContext[] = [];
 
   areas: Area[] = [];
   professionals: Professional[] = [];
@@ -361,6 +369,23 @@ class Store {
     this.session = s;
     if (s?.role === "profissional" && s.professionalId) {
       this.activeProfessionalId = s.professionalId;
+    }
+    this.emit();
+  }
+  setAvailableContexts(ctxs: UserContext[]) {
+    this.availableContexts = ctxs;
+    this.emit();
+  }
+  /** Alterna o contexto ativo dentro da mesma sessão (sem novo login). */
+  switchContext(ctx: UserContext) {
+    if (!this.session) return;
+    this.session = {
+      ...this.session,
+      role: ctx.role,
+      professionalId: ctx.role === "profissional" ? ctx.professionalId : undefined,
+    };
+    if (ctx.role === "profissional" && ctx.professionalId) {
+      this.activeProfessionalId = ctx.professionalId;
     }
     this.emit();
   }
