@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useState } from "react";
 import { useStore } from "@/hooks/use-store";
 import { PageHeader } from "@/components/page-header";
@@ -28,8 +28,14 @@ import { isSameDay } from "date-fns";
 import { BlockScheduleDialog } from "@/components/block-schedule-dialog";
 import { Textarea } from "@/components/ui/textarea";
 import type { AnamnesisField } from "@/lib/mock-store";
+import { store } from "@/lib/mock-store";
 
 export const Route = createFileRoute("/app/profissionais")({
+  beforeLoad: () => {
+    if (store.session && store.session.role !== "admin") {
+      throw redirect({ to: "/app" });
+    }
+  },
   component: Profissionais,
 });
 
