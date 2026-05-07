@@ -3,6 +3,7 @@ import { store } from "@/lib/mock-store";
 import { AppShell } from "@/components/app-shell";
 import { supabase } from "@/integrations/supabase/client";
 import { hydrateFromSupabase } from "@/lib/supabase-sync";
+import { isPlanActive } from "@/lib/plan";
 
 export const Route = createFileRoute("/app")({
   beforeLoad: async () => {
@@ -11,6 +12,9 @@ export const Route = createFileRoute("/app")({
     if (!store.authed) {
       const ok = await hydrateFromSupabase();
       if (!ok) throw redirect({ to: "/login" });
+    }
+    if (!isPlanActive(store.clinic)) {
+      throw redirect({ to: "/upgrade" });
     }
   },
   component: () => (
