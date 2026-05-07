@@ -324,6 +324,8 @@ class Store {
   session: Session | null = null;
   /** Todos os papéis/contextos do usuário logado dentro da clínica. */
   availableContexts: UserContext[] = [];
+  /** Marca se o usuário já escolheu (ou auto-aplicou) um contexto nesta sessão. */
+  contextChosen = false;
 
   areas: Area[] = [];
   professionals: Professional[] = [];
@@ -362,6 +364,8 @@ class Store {
   logout() {
     this.authed = false;
     this.session = null;
+    this.availableContexts = [];
+    this.contextChosen = false;
     sync.clearSyncSession();
     this.emit();
   }
@@ -374,11 +378,44 @@ class Store {
   }
   setAvailableContexts(ctxs: UserContext[]) {
     this.availableContexts = ctxs;
+    // Auto-aplica quando há apenas um contexto. Se houver múltiplos, força
+    // o usuário a escolher via modal (contextChosen=false).
+    if (ctxs.length <= 1) {
+      this.contextChosen = true;
+      if (ctxs.length === 1 && this.session) {
+        const only = ctxs[0];
+        this.session = {
+          ...this.session,
+          role: only.role,
+          professionalId: only.role === "profissional" ? only.professionalId : undefined,
+        };
+        if (only.role === "profissional" && only.professionalId) {
+          this.activeProfessionalId = only.professionalId;
+        }
+      }
+    } else {
+      this.contextChosen = false;
+    }
     this.emit();
   }
   /** Alterna o contexto ativo dentro da mesma sessão (sem novo login). */
   switchContext(ctx: UserContext) {
     if (!this.session) return;
+    // Hardening: só aceita contextos vindos do backend (availableContexts).
+    const allowed = this.availableContexts.some(
+      (c) => c.role === ctx.role && (c.professionalId ?? "") === (ctx.professionalId ?? ""),
+    );
+    if (!allowed) {
+      console.warn("[store] switchContext bloqueado: contexto não autorizado", ctx);
+      return;
+    }
+    if (ctx.role === "profissional") {
+      const proExists = this.professionals.some((p) => p.id === ctx.professionalId);
+      if (!ctx.professionalId || !proExists) {
+        console.warn("[store] switchContext bloqueado: profissional inválido", ctx);
+        return;
+      }
+    }
     this.session = {
       ...this.session,
       role: ctx.role,
@@ -387,6 +424,7 @@ class Store {
     if (ctx.role === "profissional" && ctx.professionalId) {
       this.activeProfessionalId = ctx.professionalId;
     }
+    this.contextChosen = true;
     this.emit();
   }
   hasRole(...roles: AppRole[]) {
