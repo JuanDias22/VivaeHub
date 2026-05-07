@@ -49,3 +49,7 @@ export function trialDaysLeft(clinic: Clinic | undefined | null): number {
   const ms = new Date(clinic.trialEndsAt).getTime() - Date.now();
   return Math.max(0, Math.ceil(ms / (1000 * 60 * 60 * 24)));
 }
+
+export function hasProAccess(clinic: Clinic | undefined | null): boolean {
+  return (clinic?.plan ?? "trial") === "pro";
+}
