@@ -15,6 +15,7 @@ import {
 import { format, isSameDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { ContributionBadge } from "@/components/financial-badge";
+import { DashboardProInsights } from "@/components/pro-insights";
 
 export const Route = createFileRoute("/app/")({
   component: Dashboard,
@@ -319,6 +320,8 @@ function Dashboard() {
           </div>
         </div>
       </Card>
+
+      <DashboardProInsights />
     </div>
   );
 }
