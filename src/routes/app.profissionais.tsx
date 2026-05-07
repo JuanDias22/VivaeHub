@@ -31,6 +31,11 @@ import type { AnamnesisField } from "@/lib/mock-store";
 import { store } from "@/lib/mock-store";
 
 export const Route = createFileRoute("/app/profissionais")({
+  beforeLoad: () => {
+    if (store.session && store.session.role !== "admin") {
+      throw redirect({ to: "/app" });
+    }
+  },
   component: Profissionais,
 });
 
