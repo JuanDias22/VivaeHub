@@ -37,6 +37,7 @@ import { formatDateOnly } from "@/lib/date-utils";
 export const Route = createFileRoute("/app/associados")({
   beforeLoad: () => {
     if (globalStore.session && globalStore.session.role === "profissional") {
+      globalStore.denyAccess("Contribuições");
       throw redirect({ to: "/app" });
     }
   },
