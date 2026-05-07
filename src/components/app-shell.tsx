@@ -11,10 +11,12 @@ import {
   MessageCircle,
   ConciergeBell,
   ExternalLink,
+  Sparkles,
 } from "lucide-react";
 import { useStore } from "@/hooks/use-store";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
+import { trialDaysLeft } from "@/lib/plan";
 import { ContextSwitcher } from "@/components/context-switcher";
 import { ContextPickerModal } from "@/components/context-picker-modal";
 import { PermissionDeniedModal } from "@/components/permission-denied-modal";
@@ -48,6 +50,18 @@ const nav: NavItem[] = [
 export function AppShell({ children }: { children: React.ReactNode }) {
   const store = useStore();
   const location = useLocation();
+  const plan = store.clinic.plan ?? "trial";
+  const days = trialDaysLeft(store.clinic);
+  const planLabel =
+    plan === "trial" ? `Trial · ${days} dia${days === 1 ? "" : "s"}` : plan === "basic" ? "Basic" : "Pro";
+  const planTone =
+    plan === "pro"
+      ? "bg-primary/15 text-primary border-primary/30"
+      : plan === "basic"
+      ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
+      : days <= 3
+      ? "bg-destructive/15 text-destructive border-destructive/30"
+      : "bg-muted text-muted-foreground border-border";
 
   return (
     <div className="flex min-h-screen w-full bg-background">
@@ -58,7 +72,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
           <div className="min-w-0">
             <div className="text-sm font-semibold tracking-tight truncate">{store.clinic.name}</div>
-            <div className="text-xs text-muted-foreground">VivaeHub</div>
+            <div className="flex items-center gap-1.5 mt-0.5">
+              <span className={cn("text-[10px] px-1.5 py-0.5 rounded border font-medium", planTone)}>
+                {planLabel}
+              </span>
+            </div>
           </div>
         </div>
 
@@ -97,6 +115,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </nav>
 
         <div className="border-t border-sidebar-border p-3">
+          <Link
+            to="/upgrade"
+            className="flex items-center gap-3 rounded-lg px-3 py-2 mb-2 text-sm text-sidebar-foreground/85 hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground transition-smooth border border-dashed border-sidebar-border"
+          >
+            <Sparkles className="h-4 w-4 text-primary" />
+            {plan === "trial" ? "Fazer upgrade" : "Gerenciar plano"}
+          </Link>
           <div className="mb-2">
             <ContextSwitcher />
           </div>
