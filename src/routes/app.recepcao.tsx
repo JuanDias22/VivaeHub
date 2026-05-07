@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useStore } from "@/hooks/use-store";
 import { PageHeader } from "@/components/page-header";
 import { Card } from "@/components/ui/card";
@@ -16,8 +16,15 @@ import { format, isSameDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
 import { FinancialBadge } from "@/components/financial-badge";
+import { store as globalStore } from "@/lib/mock-store";
 
 export const Route = createFileRoute("/app/recepcao")({
+  beforeLoad: () => {
+    if (globalStore.session && globalStore.session.role === "profissional") {
+      globalStore.denyAccess("Recepção");
+      throw redirect({ to: "/app" });
+    }
+  },
   component: Recepcao,
 });
 
