@@ -69,25 +69,26 @@ export async function hydrateFromSupabase(): Promise<boolean> {
   if (!profile) return false;
   currentClinicId = profile.clinic_id;
 
-  // Carrega TODOS os papéis do usuário na clínica (para o seletor de contexto)
+  // Carrega TODOS os papéis reais do usuário na clínica
   const { data: roleRows } = await supabase
     .from("user_roles")
     .select("role, professional_id")
     .eq("user_id", user.id)
     .eq("clinic_id", profile.clinic_id);
-  const contexts = (roleRows ?? []).map((r) => ({
+  const realContexts = (roleRows ?? []).map((r) => ({
     role: r.role as AppRole,
     professionalId: r.professional_id ?? undefined,
   }));
-  store.setAvailableContexts(contexts);
   const rolePriority = (r: AppRole) => (r === "admin" ? 1 : r === "recepcao" ? 2 : 3);
-  const primary = [...contexts].sort((a, b) => rolePriority(a.role) - rolePriority(b.role))[0];
+  const primary = [...realContexts].sort((a, b) => rolePriority(a.role) - rolePriority(b.role))[0];
   store.setSession({
     userId: user.id,
     clinicId: profile.clinic_id,
     role: primary?.role ?? "admin",
     professionalId: primary?.professionalId,
   });
+  // setAvailableContexts será chamado depois que carregarmos os profissionais,
+  // para que admins possam alternar entre "view-as" qualquer profissional/recepção.
 
   const [clinicRes, areasRes, prosRes, patientsRes, apptsRes, blocksRes, notesRes, anamnesesRes, examsRes, contribsRes, financeRes] =
     await Promise.all([
@@ -214,6 +215,23 @@ export async function hydrateFromSupabase(): Promise<boolean> {
 
   store.authed = true;
   store.activeProfessionalId = store.professionals[0]?.id ?? null;
+
+  // Monta lista completa de contextos: papéis reais + (se admin) um contexto
+  // virtual por profissional da clínica e "Recepção". Apenas store local —
+  // não cria linhas em user_roles, então RLS não muda. switchContext atualiza
+  // role/professionalId no store para filtros locais de UI.
+  const isAdmin = realContexts.some((c) => c.role === "admin");
+  const contexts: { role: AppRole; professionalId?: string }[] = [...realContexts];
+  const seen = new Set(contexts.map((c) => `${c.role}:${c.professionalId ?? ""}`));
+  if (isAdmin) {
+    if (!seen.has("recepcao:")) contexts.push({ role: "recepcao", professionalId: undefined });
+    for (const pro of store.professionals) {
+      const key = `profissional:${pro.id}`;
+      if (!seen.has(key)) contexts.push({ role: "profissional", professionalId: pro.id });
+    }
+  }
+  store.setAvailableContexts(contexts);
+
   store.emit();
   subscribeRealtime();
   listenForPublicSync();
