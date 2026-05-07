@@ -326,6 +326,8 @@ class Store {
   availableContexts: UserContext[] = [];
   /** Marca se o usuário já escolheu (ou auto-aplicou) um contexto nesta sessão. */
   contextChosen = false;
+  /** Nome da página recusada por permissão — exibida em modal global. */
+  deniedPage: string | null = null;
 
   areas: Area[] = [];
   professionals: Professional[] = [];
@@ -366,6 +368,8 @@ class Store {
     this.session = null;
     this.availableContexts = [];
     this.contextChosen = false;
+    this.activeProfessionalId = null;
+    this.deniedPage = null;
     sync.clearSyncSession();
     this.emit();
   }
@@ -378,6 +382,27 @@ class Store {
   }
   setAvailableContexts(ctxs: UserContext[]) {
     this.availableContexts = ctxs;
+    // Fallback seguro: se a sessão atual não bate com nenhum contexto válido,
+    // aplica o primeiro contexto válido (priorizando admin).
+    if (this.session) {
+      const matches = ctxs.some(
+        (c) =>
+          c.role === this.session!.role &&
+          (c.professionalId ?? "") === (this.session!.professionalId ?? ""),
+      );
+      if (!matches && ctxs.length > 0) {
+        const priority = (r: AppRole) => (r === "admin" ? 1 : r === "recepcao" ? 2 : 3);
+        const fallback = [...ctxs].sort((a, b) => priority(a.role) - priority(b.role))[0];
+        this.session = {
+          ...this.session,
+          role: fallback.role,
+          professionalId: fallback.role === "profissional" ? fallback.professionalId : undefined,
+        };
+        if (fallback.role === "profissional" && fallback.professionalId) {
+          this.activeProfessionalId = fallback.professionalId;
+        }
+      }
+    }
     // Auto-aplica quando há apenas um contexto. Se houver múltiplos, força
     // o usuário a escolher via modal (contextChosen=false).
     if (ctxs.length <= 1) {
@@ -429,6 +454,14 @@ class Store {
   }
   hasRole(...roles: AppRole[]) {
     return !!this.session && roles.includes(this.session.role);
+  }
+  denyAccess(pageName: string) {
+    this.deniedPage = pageName;
+    this.emit();
+  }
+  clearDenied() {
+    this.deniedPage = null;
+    this.emit();
   }
   setActiveProfessional(id: string | null) {
     this.activeProfessionalId = id;
