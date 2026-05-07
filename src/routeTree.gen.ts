@@ -24,6 +24,7 @@ import { Route as AppFinanceiroRouteImport } from './routes/app.financeiro'
 import { Route as AppAssociadosRouteImport } from './routes/app.associados'
 import { Route as AppAgendaRouteImport } from './routes/app.agenda'
 import { Route as PortalSlugProRouteImport } from './routes/portal.$slug.$pro'
+import { Route as ApiPublicMercadopagoWebhookRouteImport } from './routes/api/public/mercadopago-webhook'
 
 const UpgradeRoute = UpgradeRouteImport.update({
   id: '/upgrade',
@@ -100,6 +101,12 @@ const PortalSlugProRoute = PortalSlugProRouteImport.update({
   path: '/$pro',
   getParentRoute: () => PortalSlugRoute,
 } as any)
+const ApiPublicMercadopagoWebhookRoute =
+  ApiPublicMercadopagoWebhookRouteImport.update({
+    id: '/api/public/mercadopago-webhook',
+    path: '/api/public/mercadopago-webhook',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -116,6 +123,7 @@ export interface FileRoutesByFullPath {
   '/app/whatsapp': typeof AppWhatsappRoute
   '/portal/$slug': typeof PortalSlugRouteWithChildren
   '/app/': typeof AppIndexRoute
+  '/api/public/mercadopago-webhook': typeof ApiPublicMercadopagoWebhookRoute
   '/portal/$slug/$pro': typeof PortalSlugProRoute
 }
 export interface FileRoutesByTo {
@@ -132,6 +140,7 @@ export interface FileRoutesByTo {
   '/app/whatsapp': typeof AppWhatsappRoute
   '/portal/$slug': typeof PortalSlugRouteWithChildren
   '/app': typeof AppIndexRoute
+  '/api/public/mercadopago-webhook': typeof ApiPublicMercadopagoWebhookRoute
   '/portal/$slug/$pro': typeof PortalSlugProRoute
 }
 export interface FileRoutesById {
@@ -150,6 +159,7 @@ export interface FileRoutesById {
   '/app/whatsapp': typeof AppWhatsappRoute
   '/portal/$slug': typeof PortalSlugRouteWithChildren
   '/app/': typeof AppIndexRoute
+  '/api/public/mercadopago-webhook': typeof ApiPublicMercadopagoWebhookRoute
   '/portal/$slug/$pro': typeof PortalSlugProRoute
 }
 export interface FileRouteTypes {
@@ -169,6 +179,7 @@ export interface FileRouteTypes {
     | '/app/whatsapp'
     | '/portal/$slug'
     | '/app/'
+    | '/api/public/mercadopago-webhook'
     | '/portal/$slug/$pro'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -185,6 +196,7 @@ export interface FileRouteTypes {
     | '/app/whatsapp'
     | '/portal/$slug'
     | '/app'
+    | '/api/public/mercadopago-webhook'
     | '/portal/$slug/$pro'
   id:
     | '__root__'
@@ -202,6 +214,7 @@ export interface FileRouteTypes {
     | '/app/whatsapp'
     | '/portal/$slug'
     | '/app/'
+    | '/api/public/mercadopago-webhook'
     | '/portal/$slug/$pro'
   fileRoutesById: FileRoutesById
 }
@@ -212,6 +225,7 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   UpgradeRoute: typeof UpgradeRoute
   PortalSlugRoute: typeof PortalSlugRouteWithChildren
+  ApiPublicMercadopagoWebhookRoute: typeof ApiPublicMercadopagoWebhookRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -321,6 +335,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PortalSlugProRouteImport
       parentRoute: typeof PortalSlugRoute
     }
+    '/api/public/mercadopago-webhook': {
+      id: '/api/public/mercadopago-webhook'
+      path: '/api/public/mercadopago-webhook'
+      fullPath: '/api/public/mercadopago-webhook'
+      preLoaderRoute: typeof ApiPublicMercadopagoWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -367,7 +388,17 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   UpgradeRoute: UpgradeRoute,
   PortalSlugRoute: PortalSlugRouteWithChildren,
+  ApiPublicMercadopagoWebhookRoute: ApiPublicMercadopagoWebhookRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { createStart } from '@tanstack/react-start'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+  }
+}
