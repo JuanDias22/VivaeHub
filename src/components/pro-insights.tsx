@@ -15,7 +15,7 @@ import {
   PieChart,
   Lightbulb,
 } from "lucide-react";
-import { isSameMonth, subMonths, isSameDay, format } from "date-fns";
+import { isSameMonth, subMonths, format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
 function ProBadge() {
@@ -120,8 +120,8 @@ export function FinanceProInsights() {
     .slice(0, 3);
 
   const expenses = store.finance
-    .filter((e) => e.type === "despesa" && isSameMonth(new Date(e.date), now))
-    .reduce((s, e) => s + e.amount, 0);
+    .filter((e) => e.type === "outro" && isSameMonth(new Date(e.date), now) && e.amount < 0)
+    .reduce((s, e) => s + Math.abs(e.amount), 0);
   const profit = monthRev - expenses;
 
   return (
