@@ -8,7 +8,7 @@ import { createCheckoutPreference } from "@/server/billing.functions";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Activity, Check, Sparkles, Loader2 } from "lucide-react";
+import { Activity, Check, X, Sparkles, Loader2, Crown, Zap, Clock } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/upgrade")({
@@ -19,27 +19,82 @@ export const Route = createFileRoute("/upgrade")({
   component: UpgradePage,
 });
 
-const PLANS = [
+type PlanId = "basic" | "plus" | "pro";
+
+type PlanFeature = { label: string; included: boolean };
+
+type PlanDef = {
+  id: PlanId;
+  name: string;
+  price: string;
+  suffix: string;
+  tagline: string;
+  badge?: string;
+  badgeIcon?: typeof Sparkles;
+  cta: string;
+  highlight?: boolean;
+  premium?: boolean;
+  features: PlanFeature[];
+};
+
+const PLANS: PlanDef[] = [
   {
-    id: "basic" as const,
+    id: "basic",
     name: "Basic",
     price: "R$ 99",
     suffix: "/mês",
-    features: ["Agenda completa", "Pacientes ilimitados", "Recepção", "WhatsApp básico"],
+    tagline: "Para começar com o essencial",
+    cta: "Começar no Basic",
+    features: [
+      { label: "Agenda completa", included: true },
+      { label: "Pacientes ilimitados", included: true },
+      { label: "Recepção", included: true },
+      { label: "WhatsApp básico", included: true },
+      { label: "Até 5 funcionários", included: true },
+      { label: "Financeiro completo", included: false },
+      { label: "Anamneses ilimitadas", included: false },
+      { label: "Relatórios avançados", included: false },
+    ],
   },
   {
-    id: "pro" as const,
-    name: "Pro",
-    price: "R$ 249",
+    id: "plus",
+    name: "Plus",
+    price: "R$ 159",
     suffix: "/mês",
-    features: [
-      "Tudo do Basic",
-      "Profissionais ilimitados",
-      "Financeiro completo",
-      "Anamneses ilimitadas",
-      "Suporte prioritário",
-    ],
+    tagline: "Melhor custo-benefício",
+    badge: "Mais escolhido",
+    badgeIcon: Sparkles,
+    cta: "Escolher Plus",
     highlight: true,
+    features: [
+      { label: "Tudo do Basic", included: true },
+      { label: "Até 10 funcionários", included: true },
+      { label: "Financeiro básico", included: true },
+      { label: "Relatórios simples", included: true },
+      { label: "Suporte padrão", included: true },
+      { label: "Automação avançada", included: false },
+      { label: "Recursos premium de gestão", included: false },
+    ],
+  },
+  {
+    id: "pro",
+    name: "Pro",
+    price: "R$ 279",
+    suffix: "/mês",
+    tagline: "Para clínicas em escala",
+    badge: "Premium",
+    badgeIcon: Crown,
+    cta: "Ir para o Pro",
+    premium: true,
+    features: [
+      { label: "Tudo do Plus", included: true },
+      { label: "Funcionários ilimitados", included: true },
+      { label: "Financeiro completo", included: true },
+      { label: "Anamneses ilimitadas", included: true },
+      { label: "Relatórios avançados", included: true },
+      { label: "Automação completa", included: true },
+      { label: "Suporte prioritário", included: true },
+    ],
   },
 ];
 
@@ -47,9 +102,10 @@ function UpgradePage() {
   const store = useStore();
   const active = isPlanActive(store.clinic);
   const days = trialDaysLeft(store.clinic);
-  const [loadingPlan, setLoadingPlan] = useState<"basic" | "pro" | null>(null);
+  const isTrial = (store.clinic.plan ?? "trial") === "trial";
+  const [loadingPlan, setLoadingPlan] = useState<PlanId | null>(null);
 
-  async function handleUpgrade(plan: "basic" | "pro") {
+  async function handleUpgrade(plan: PlanId) {
     try {
       setLoadingPlan(plan);
       const res = await createCheckoutPreference({ data: { plan } });
@@ -91,7 +147,7 @@ function UpgradePage() {
         </div>
       </header>
 
-      <main className="max-w-5xl mx-auto px-6 py-10">
+      <main className="max-w-6xl mx-auto px-6 py-10">
         <div className="text-center mb-10">
           <Badge variant="secondary" className="mb-3">
             <Sparkles className="h-3 w-3 mr-1" />
@@ -107,47 +163,94 @@ function UpgradePage() {
               ? `Você ainda tem ${days} dia(s) de trial. Faça upgrade para garantir continuidade.`
               : "Para continuar usando o VivaeHub, escolha um plano abaixo."}
           </p>
+          {isTrial && active && days > 0 && (
+            <div className="mt-5 inline-flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-4 py-2 text-sm text-foreground">
+              <Clock className="h-4 w-4 text-primary" />
+              <span>
+                Você ainda tem <strong>{days} dia(s)</strong> de trial. Escolha seu plano para
+                continuar usando o sistema sem interrupções.
+              </span>
+            </div>
+          )}
         </div>
 
-        <div className="grid md:grid-cols-2 gap-4">
-          {PLANS.map((p) => (
-            <Card
-              key={p.id}
-              className={`p-6 shadow-soft ${p.highlight ? "border-primary border-2 shadow-glow" : ""}`}
-            >
-              <div className="flex items-baseline justify-between mb-4">
-                <h3 className="text-xl font-semibold">{p.name}</h3>
-                {p.highlight && <Badge className="gradient-primary">Recomendado</Badge>}
-              </div>
-              <div className="mb-4">
-                <span className="text-3xl font-bold">{p.price}</span>
-                <span className="text-muted-foreground text-sm">{p.suffix}</span>
-              </div>
-              <ul className="space-y-2 mb-6">
-                {p.features.map((f) => (
-                  <li key={f} className="flex items-start gap-2 text-sm">
-                    <Check className="h-4 w-4 text-primary mt-0.5 shrink-0" />
-                    <span>{f}</span>
-                  </li>
-                ))}
-              </ul>
-              <Button
-                onClick={() => handleUpgrade(p.id)}
-                disabled={loadingPlan !== null}
-                className={`w-full ${p.highlight ? "gradient-primary" : ""}`}
-                variant={p.highlight ? "default" : "outline"}
+        <div className="grid md:grid-cols-3 gap-5 items-stretch">
+          {PLANS.map((p) => {
+            const BadgeIcon = p.badgeIcon;
+            const cardClass = p.highlight
+              ? "border-primary border-2 shadow-glow md:scale-[1.04] md:-translate-y-1 z-10"
+              : p.premium
+              ? "border-2 border-purple-500/40"
+              : "border";
+            return (
+              <Card
+                key={p.id}
+                className={`p-6 shadow-soft flex flex-col relative ${cardClass}`}
               >
-                {loadingPlan === p.id ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Redirecionando...
-                  </>
-                ) : (
-                  "Fazer upgrade"
+                {p.badge && (
+                  <div
+                    className={`absolute -top-3 left-1/2 -translate-x-1/2 inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold shadow ${
+                      p.highlight
+                        ? "gradient-primary text-primary-foreground"
+                        : "bg-purple-600 text-white"
+                    }`}
+                  >
+                    {BadgeIcon && <BadgeIcon className="h-3 w-3" />}
+                    {p.badge}
+                  </div>
                 )}
-              </Button>
-            </Card>
-          ))}
+                <div className="mb-1">
+                  <h3 className="text-xl font-semibold">{p.name}</h3>
+                  <p className="text-xs text-muted-foreground">{p.tagline}</p>
+                </div>
+                <div className="mb-5 mt-3">
+                  <span className="text-4xl font-bold tracking-tight">{p.price}</span>
+                  <span className="text-muted-foreground text-sm">{p.suffix}</span>
+                </div>
+                <ul className="space-y-2 mb-6 flex-1">
+                  {p.features.map((f) => (
+                    <li
+                      key={f.label}
+                      className={`flex items-start gap-2 text-sm ${
+                        f.included ? "" : "text-muted-foreground"
+                      }`}
+                    >
+                      {f.included ? (
+                        <Check className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                      ) : (
+                        <X className="h-4 w-4 text-muted-foreground/60 mt-0.5 shrink-0" />
+                      )}
+                      <span>{f.label}</span>
+                    </li>
+                  ))}
+                </ul>
+                <Button
+                  onClick={() => handleUpgrade(p.id)}
+                  disabled={loadingPlan !== null}
+                  className={`w-full ${
+                    p.highlight
+                      ? "gradient-primary"
+                      : p.premium
+                      ? "bg-purple-600 text-white hover:bg-purple-700"
+                      : ""
+                  }`}
+                  variant={p.highlight || p.premium ? "default" : "outline"}
+                >
+                  {loadingPlan === p.id ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Redirecionando...
+                    </>
+                  ) : (
+                    <>
+                      {p.premium && <Zap className="h-4 w-4" />}
+                      {p.cta}
+                    </>
+                  )}
+                </Button>
+              </Card>
+            );
+          })}
         </div>
 
         {active && (
