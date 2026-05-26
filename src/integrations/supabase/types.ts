@@ -658,7 +658,7 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "recepcao" | "profissional"
-      clinic_plan: "trial" | "basic" | "pro"
+      clinic_plan: "trial" | "basic" | "plus" | "pro"
     }
     CompositeTypes: {
       [_ in never]: never

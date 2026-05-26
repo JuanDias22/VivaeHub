@@ -2,7 +2,6 @@ import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { lovable } from "@/integrations/lovable";
 import { hydrateFromSupabase } from "@/lib/supabase-sync";
 import {
   Activity,
@@ -53,18 +52,19 @@ function LoginPage() {
     nav({ to: "/app" });
   }
 
-  async function googleLogin() {
-    const result = await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: window.location.origin + "/login",
-    });
-    if (result.error) {
-      toast.error("Falha ao entrar com Google.");
-      return;
-    }
-    if (result.redirected) return;
-    const ok = await hydrateFromSupabase();
-    if (ok) nav({ to: "/app" });
+async function googleLogin() {
+  const { error } = await supabase.auth.signInWithOAuth({
+    provider: "google",
+    options: {
+      redirectTo: window.location.origin + "/login",
+    },
+  })
+
+  if (error) {
+    toast.error("Falha ao entrar com Google.")
+    console.error(error)
   }
+}
 
   // After OAuth callback hydrate and redirect.
   useEffect(() => {

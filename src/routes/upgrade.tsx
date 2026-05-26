@@ -4,7 +4,7 @@ import { useStore } from "@/hooks/use-store";
 import { store as globalStore } from "@/lib/mock-store";
 import { isPlanActive, trialDaysLeft } from "@/lib/plan";
 import { supabase } from "@/integrations/supabase/client";
-import { createCheckoutPreference } from "@/server/billing.functions";
+import { createCheckoutPreference } from "@/lib/serverFns/billing.functions.server";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -105,22 +105,29 @@ function UpgradePage() {
   const isTrial = (store.clinic.plan ?? "trial") === "trial";
   const [loadingPlan, setLoadingPlan] = useState<PlanId | null>(null);
 
-  async function handleUpgrade(plan: PlanId) {
-    try {
-      setLoadingPlan(plan);
-      const res = await createCheckoutPreference({ data: { plan } });
-      if (res?.url) {
-        window.location.href = res.url;
-      } else {
-        toast.error("Não foi possível iniciar o checkout.");
-        setLoadingPlan(null);
-      }
-    } catch (e: any) {
-      console.error(e);
-      toast.error(e?.message || "Erro ao iniciar pagamento");
-      setLoadingPlan(null);
-    }
+ async function handleUpgrade(plan: PlanId) {
+  try {
+    setLoadingPlan(plan);
+
+    const res = await fetch("/api/public/mercadopago-checkout", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ plan }),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) throw new Error(data);
+
+    window.location.href = data.url;
+  } catch (err: any) {
+    toast.error(err.message || "Erro ao iniciar pagamento");
+  } finally {
+    setLoadingPlan(null);
   }
+}
 
   return (
     <div className="min-h-screen bg-background">
