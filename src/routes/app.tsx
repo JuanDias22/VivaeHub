@@ -13,6 +13,7 @@ export const Route = createFileRoute("/app")({
       const ok = await hydrateFromSupabase();
       if (!ok) throw redirect({ to: "/login" });
     }
+    console.log("STORE CLINIC", store.clinic);
     if (!isPlanActive(store.clinic)) {
       throw redirect({ to: "/upgrade" });
     }
