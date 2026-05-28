@@ -39,9 +39,8 @@ function LoginPage() {
     setLoading(true);
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) {
-      setLoading(false);
-      toast.error(error.message);
-      return;
+  await supabase.auth.signOut({ scope: "global" });
+  return;
     }
     const ok = await hydrateFromSupabase();
     setLoading(false);

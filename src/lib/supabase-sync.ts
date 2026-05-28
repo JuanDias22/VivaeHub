@@ -43,7 +43,8 @@ function broadcastPublicMutation(kind: "appointment" | "patient") {
 function logErr(label: string, err: unknown) {
   if (err) console.warn(`[supabase-sync] ${label}`, err);
 }
-
+const session = await supabase.auth.getSession();
+console.log("SESSION", session);
 /** Loads the entire clinic dataset from Supabase into the store. */
 export async function hydrateFromSupabase(): Promise<boolean> {
   const { data: userData } = await supabase.auth.getUser();
@@ -62,6 +63,8 @@ export async function hydrateFromSupabase(): Promise<boolean> {
       .maybeSingle();
     if (data?.clinic_id) {
       profile = data;
+      console.log("PROFILE REAL", profile);
+      console.log("CLINIC ID USADO", profile.clinic_id);
       break;
     }
     await new Promise((r) => setTimeout(r, 250));
@@ -104,8 +107,15 @@ export async function hydrateFromSupabase(): Promise<boolean> {
       supabase.from("contributions").select("*").eq("clinic_id", profile.clinic_id),
       supabase.from("finance_entries").select("*").eq("clinic_id", profile.clinic_id),
     ]);
-
+console.log({
+  clinicRes,
+  areasRes,
+  prosRes,
+  patientsRes,
+  apptsRes,
+});
   if (clinicRes.data) {
+    console.log("CLINIC REAL", clinicRes.data);
     store.clinic = {
       name: clinicRes.data.name,
       ownerEmail: clinicRes.data.owner_email,

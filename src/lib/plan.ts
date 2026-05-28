@@ -35,12 +35,26 @@ export function formatLimit(n: number): string {
 
 export function isPlanActive(clinic: Clinic | undefined | null): boolean {
   if (!clinic) return false;
+
   const plan = clinic.plan ?? "trial";
-  if (plan === "basic" || plan === "pro") return true;
+
+  // planos pagos
+  if (plan === "basic" || plan === "plus" || plan === "pro") {
+    return true;
+  }
+console.log("PLAN DEBUG", {
+  plan: clinic?.plan,
+  trialEndsAt: clinic?.trialEndsAt,
+  now: new Date().toISOString(),
+});
+  // trial
   if (plan === "trial") {
-    if (!clinic.trialEndsAt) return false;
+    // se não existir data, assume ativo
+    if (!clinic.trialEndsAt) return true;
+
     return new Date(clinic.trialEndsAt).getTime() > Date.now();
   }
+
   return false;
 }
 
